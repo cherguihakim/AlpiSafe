@@ -227,6 +227,117 @@ void GPS_func(){
   //GPS end
 }
 
+//Calcule le risque lie a la frequence cardiaque et la temperature corpporelle
+float score_frequence_cardiaque_temp(const float& T_c, const int& FC){
+  if (FC < 40 && T_c < 32) return 1.0; // Situation critique : risque vital
+  else if (FC > 120 && T_c >= 32 && T_c < 35) return 0.9; // Hypothermie compensatoire
+  else if (FC > 140 || (FC < 50 && T_c >= 32 && T_c < 36)) return 0.8; // Tachychardie ou bradycardie moderee
+  else if ( (FC >= 100 && FC <= 140) && (T_c >= 35 and T_c < 36) ) return 0.7; //risque leger
+  else if ( (FC >= 50 && FC < 100) && (T_c >= 36 and T_c <= 38.5) ) return 0.5; //valeurs normales
+  else if ( FC > 180 || T_c > 40) return 1; //Hyperthermie ou crise cardiaque
+  else return 0.0; //aucun risque detecte
+}
+
+//Calcule le risque d immobilite prolongee 
+float score_immobilite(const int& mov, const float& t_immobile){
+  if (mov == 0){ //Personne me bouge plus
+    if (t_immobile > 30) return 1.0; // Immobilite critique
+    else if (t_immobile > 20) return 0.8; // Immobilite prolongee avec risque elevee
+    else if (t_immobile > 10) return 0.5; // Surveillance necessaire
+  }
+  else return 0.0; // Personne en mouvement
+}
+
+//Calcule le risque lie a la temperature corporelle et a la temperature externe 
+float score_temp_env (const float& T_c, const float& T_e, const int& FC){
+  float score = 0.0;
+  if (T_c < 32 || T_c > 40) score = 1.0; // Hypothermie ou hyperthermie critique 
+  else if ( (T_c >= 32 && T_c < 35) && T_e < -10) score = 0.9; // Hypothermie severe dans un environnement froid
+  else if ( (T_c >= 35 && T_c < 36) && T_e < -15) score = 0.8; // Risque d hypothermie rapide
+  else if ( (T_c >= 36 && T_c < 37) && T_e < -10) score = 0.7; // Debut d impact du froid
+  else if ( T_c >= 37 && T_c <= 38.5) score = 0.5; // Temperature corporelle normale
+  else if ( T_c > 39 && FC > 150) score = 0.9; // Coup de chaleur potentielle
+
+  if (T_e < -15) score += 0.2; //Risque aggrave en cas de temperature exterieure tres basse 
+
+  return std::min(1.0f, score); 
+}
+
+//Calcule le risque lie aux interactions medicales
+float score_interaction_medicale (const float& T_c, const int& FC, const float& t_immobile){
+  if ( T_c < 32 && FC > 40 && t_immobile > 20) return 1.0; // Risque vital : hypothermie avancee, bradycardie et immobilite
+  else if ( T_c < 35 && FC > 120 && t_immobile > 15) return 0.8; // Tachycardie associee a une hypothermie et une immobilite
+  else if ( T_c < 35 || t_immobile > 15) return 0.5; // Risque modere  
+  else return 0.0; // Aucun risque identifie  
+}
+
+//Calcule le score de gravite general (SG)
+float calcul_score_gravite (const float& T_c, const int& FC, const int& mov, const float& t_immobile, const float& T_e){
+  float w1, w2, w3, w4; //Ponderations pour chaque facteur de risque
+  w1 = 0.3; //Poids pour la frequence cardiaque
+  w2 = 0.3; //Poids pour l immobilite
+  w3 = 0.2; //Poids pour la temp corporelle et exterieure
+  w4 = 0.2; //Poids pour l interaction medicale
+  
+  //Calcul des scores individuels
+  float score_fc = score_frequence_cardiaque_temp (T_c, FC);
+  //Serial.print("Le score fc est : ");
+  //Serial.println(score_fc);
+  float score_mov = score_immobilite (mov, t_immobile);
+  //Serial.print("Le score mov est : ");
+  //Serial.println(score_mov);
+  float score_tc_te = score_temp_env (T_c, T_e, FC);
+  //Serial.print("Le score tc te est : ");
+  //Serial.println(score_tc_te);
+  float score_inter = score_interaction_medicale (T_c, FC, t_immobile);
+  //Serial.print("Le score inter est : ");
+  //Serial.println(score_inter);
+
+  // Combinaison des scores individuels
+  float SG = (w1 * score_fc) + (w2 * score_mov) + (w3 * score_tc_te) + (w4 * score_inter);
+
+  return std::min(1.0f, SG);
+}
+
+// Donne une interpretation du score de gravite
+const char* evaluer_niveau_gravite (const float& SG){
+  if (SG < 0.3) return "Situation normale";
+  else if ( SG >= 0.3 && SG < 0.6) return "Pre alerte : Risque modere";
+  else if ( SG >= 0.6 && SG < 0.8) return "Alerte serieuse : Confirmation requise";
+  else return "Alerte critique";
+}
+
+void test_cases(){
+  /* Tests unitaires pour verifier le bon fonctionnement*/
+  Serial.println("Test cases en cours ...");
+  float SG = calcul_score_gravite (34, 130, 0, 35, -10);
+  Serial.print("Le score SG est : ");
+  Serial.println(SG);
+  Serial.println(evaluer_niveau_gravite(SG));
+  delay(5000);
+  SG = calcul_score_gravite (37, 80, 1, 5, 20);
+  Serial.print("Le score SG est : ");
+  Serial.println(SG);
+  Serial.println(evaluer_niveau_gravite(SG));
+  delay(5000);
+  SG = calcul_score_gravite (40, 150, 0, 30, 35);
+  Serial.print("Le score SG est : ");
+  Serial.println(SG);
+  Serial.println(evaluer_niveau_gravite(SG));
+  delay(5000);
+  SG = calcul_score_gravite (32, 45, 0, 25, -15);
+  Serial.print("Le score SG est : ");
+  Serial.println(SG);
+  Serial.println(evaluer_niveau_gravite(SG));
+  delay(5000);
+  SG = calcul_score_gravite (38, 100, 1, 0, 30);
+  Serial.print("Le score SG est : ");
+  Serial.println(SG);
+  Serial.println(evaluer_niveau_gravite(SG));
+  delay(5000);
+  Serial.println("Fin des test cases ");
+}
+
 void loop() {
   // put your main code here, to run repeatedly:
   delay (10000);// delai arbitraire 
@@ -237,7 +348,10 @@ void loop() {
 
   accelerometer();
 
-  GPS_func();
+  GPS_func(); 
 
-  Serial.println();
+  //test_cases();
+
+  
+  //Serial.println();
 }
