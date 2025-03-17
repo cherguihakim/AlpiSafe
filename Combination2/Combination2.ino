@@ -1,6 +1,6 @@
 
 //External Temperature def start
-#include "DHT.h"
+#include "DHT.h" //Install DHT sensor library by Adafruit
 #define DHTPIN 4
 #define DHTTYPE DHT11  
 DHT dht(DHTPIN, DHTTYPE);
@@ -15,20 +15,20 @@ DHT dht(DHTPIN, DHTTYPE);
 
 //Internal temp start
 #include <Wire.h>
-#include "Adafruit_MCP9808.h"
+#include "Adafruit_MCP9808.h" //Install library Adafruit MCP9808 Library
 // Create the MCP9808 temperature sensor object
 Adafruit_MCP9808 tempsensor = Adafruit_MCP9808();
 //Internal temp end
 
 //Accelerometer start
-#include <Adafruit_MPU6050.h>
-#include <Adafruit_Sensor.h>
+#include <Adafruit_MPU6050.h> // Install Adafruit MPU6050 by Adafruit
+#include <Adafruit_Sensor.h> // Install Adafruit Unified Sensor by Adafruit
 Adafruit_MPU6050 mpu;
 //Accelerometer end
 
 //GPS start
 #include <HardwareSerial.h>
-#include <Adafruit_GPS.h>
+#include <Adafruit_GPS.h> // Install Adafruit GPS Library by Adafruit
 #define GPS_TX 17  // TX pin of GPS module (connect to ESP32 RX)
 #define GPS_RX 16  // RX pin of GPS module (connect to ESP32 TX)
 float latDeg, longDeg, speedKMH, Altitude;
