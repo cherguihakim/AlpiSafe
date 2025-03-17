@@ -40,11 +40,26 @@ uint32_t timer = millis();
 
 /* Definition des dictionnaires de donnees pour chaque capteur */
 
-/*Definition du dictionnaire de donnees pour le capteur de frequence cardiaque */
-struct DicFC {
-  char *ID;
-  int min;
-  int max;
+/*Definition d un dictionnaire de donnees generique */
+struct DicCapteurs {
+  const char* ID;
+  float min;
+  float max;
+};
+
+/*Tableau statique avec les limites des capteurs */
+const DicCapteurs tab_limites[] = {
+  {"FC", 30, 220}, //Frequence Cardiaque (BPM)
+  {"T_c", 25, 42}, //Temperature corporelle (°C)
+  {"T_e", -60, 50}, //Temperature exterieure (°C)
+  {"t_immobile", 0, 10800} //Temps d immobilite (s)
+};
+
+bool check_val_dic(const char* capteur, const float& valeur ){
+  for (const auto& c : tab_limites){
+    if(strcmp(c.ID, capteur) == 0) return (valeur >= c.min && valeur <= c.max);
+  }
+  return false; //Capteur non reconnu ou valeurs invalides
 }
 
 void setup() {
