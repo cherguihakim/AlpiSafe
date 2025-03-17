@@ -95,10 +95,7 @@ void setup() {
 
 }
 
-void loop() {
-  // put your main code here, to run repeatedly:
-  delay (10000);// delai arbitraire 
-
+void extern_temp(){
   //External temp start
   float h = dht.readHumidity();
   float t = dht.readTemperature();
@@ -114,6 +111,9 @@ void loop() {
   Serial.println(F("°C "));
   //External temperature end
 
+}
+
+void intern_temp(){
   //Internal temperature start
   tempsensor.wake();
   //Serial.print("Resolution in mode: ");
@@ -126,7 +126,9 @@ void loop() {
   tempsensor.shutdown_wake(1);
   //Serial.println("");
   //Internal temp end
+}
 
+void accelerometer(){
   //Accelerometer start
   int movement = 0 ; //by default we assume no mouvement
   if(mpu.getMotionInterruptStatus() ) {
@@ -162,6 +164,9 @@ void loop() {
   }
   //Accelerometer end
 
+}
+
+void GPS_func(){
   //GPS start
   // read data from the GPS in the 'main loop'
   char c = GPS.read();
@@ -220,6 +225,19 @@ void loop() {
     }
   }
   //GPS end
+}
 
-    Serial.println();
+void loop() {
+  // put your main code here, to run repeatedly:
+  delay (10000);// delai arbitraire 
+
+  extern_temp();
+
+  intern_temp();
+
+  accelerometer();
+
+  GPS_func();
+
+  Serial.println();
 }
