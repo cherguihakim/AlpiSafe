@@ -97,7 +97,7 @@ void setup() {
 
 void loop() {
   // put your main code here, to run repeatedly:
-  delay (2000);// delai arbitraire 
+  delay (10000);// delai arbitraire 
 
   //External temp start
   float h = dht.readHumidity();
