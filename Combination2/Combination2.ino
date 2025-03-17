@@ -356,7 +356,7 @@ void test_cases(){
   int total_cases = sizeof(test_cases_sg) / sizeof(TestCase_SG);
   int correct = 0;
 
-  Serial.println("Test cases pour le SG en cours ...");
+  Serial.println("Tests unitaires pour le SG en cours ...");
   for (int i = 0; i < total_cases; i++){
     TestCase_SG tc = test_cases_sg[i];
     float SG = calcul_score_gravite(tc.temp_intern, tc.freq_card, tc.movement, tc.time_immobilite, tc.temp_ext);
@@ -387,7 +387,7 @@ void test_cases(){
   Serial.print("\nScore de precision pour SG est : ");
   Serial.print(score_final);
   Serial.println("/100");
-  Serial.println("Fin des tests cases pour le SG.");
+  Serial.println("Fin des tests unitaires pour le SG.");
 
   struct TestCase_Dic {
     const char* name;
@@ -415,7 +415,7 @@ void test_cases(){
   total_cases = sizeof(test_cases_dic) / sizeof(TestCase_Dic); 
   correct = 0;
 
-  Serial.println("Test cases pour le dic de donnees en cours ...");
+  Serial.println("Tests unitaires pour le dic de donnees en cours ...");
   for(int i = 0; i < total_cases; i++){
     bool res = check_val_dic(test_cases_dic[i].name, test_cases_dic[i].valeur);
     if(res == test_cases_dic[i].attendu){
@@ -437,6 +437,7 @@ void test_cases(){
   Serial.print("/");
   Serial.print(total_cases);
   Serial.println(" réussis.");
+  Serial.println("Fin des tests unitaires pour le dic de donnees.");
 
 
 }
