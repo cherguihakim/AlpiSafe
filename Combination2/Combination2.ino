@@ -38,6 +38,15 @@ Adafruit_GPS GPS(&GPSSerial);
 uint32_t timer = millis();
 //GPS end
 
+/* Definition des dictionnaires de donnees pour chaque capteur */
+
+/*Definition du dictionnaire de donnees pour le capteur de frequence cardiaque */
+struct DicFC {
+  char *ID;
+  int min;
+  int max;
+}
+
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(115200);
@@ -229,7 +238,7 @@ void GPS_func(){
 
 //Calcule le risque lie a la frequence cardiaque et la temperature corpporelle
 float score_frequence_cardiaque_temp(const float& T_c, const int& FC){
-  if (FC < 40 && T_c < 32) return 1.0; // Situation critique : risque vital
+  if (FC < 40 || T_c < 32) return 1.0; // Situation critique : risque vital
   else if (FC > 120 && T_c >= 32 && T_c < 35) return 0.9; // Hypothermie compensatoire
   else if (FC > 140 || (FC < 50 && T_c >= 32 && T_c < 36)) return 0.8; // Tachychardie ou bradycardie moderee
   else if ( (FC >= 100 && FC <= 140) && (T_c >= 35 and T_c < 36) ) return 0.7; //risque leger
