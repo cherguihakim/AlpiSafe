@@ -331,35 +331,114 @@ const char* evaluer_niveau_gravite (const float& SG){
   else return "Alerte critique";
 }
 
+/* Tests unitaires pour verifier le bon fonctionnement*/
 void test_cases(){
-  /* Tests unitaires pour verifier le bon fonctionnement*/
-  Serial.println("Test cases en cours ...");
-  float SG = calcul_score_gravite (34, 130, 0, 35, -10);
-  Serial.print("Le score SG est : ");
-  Serial.println(SG);
-  Serial.println(evaluer_niveau_gravite(SG));
-  delay(5000);
-  SG = calcul_score_gravite (37, 80, 1, 5, 20);
-  Serial.print("Le score SG est : ");
-  Serial.println(SG);
-  Serial.println(evaluer_niveau_gravite(SG));
-  delay(5000);
-  SG = calcul_score_gravite (40, 150, 0, 30, 35);
-  Serial.print("Le score SG est : ");
-  Serial.println(SG);
-  Serial.println(evaluer_niveau_gravite(SG));
-  delay(5000);
-  SG = calcul_score_gravite (32, 45, 0, 25, -15);
-  Serial.print("Le score SG est : ");
-  Serial.println(SG);
-  Serial.println(evaluer_niveau_gravite(SG));
-  delay(5000);
-  SG = calcul_score_gravite (38, 100, 1, 0, 30);
-  Serial.print("Le score SG est : ");
-  Serial.println(SG);
-  Serial.println(evaluer_niveau_gravite(SG));
-  delay(5000);
-  Serial.println("Fin des test cases ");
+  /*Tests pour le score de gravite */
+  struct TestCase_SG {
+    const float temp_intern;
+    const int freq_card;
+    const int movement;
+    const float time_immobilite;
+    const float temp_ext;
+    const char* expected;
+  };
+
+  TestCase_SG test_cases_sg[] = {
+    {34, 130, 0, 35, -10, "Alerte sérieuse : Confirmation requise"},
+    {37, 80, 1, 5, 20, "Situation normale"},
+    {40, 150, 0, 30, 35, "Pré-alerte : Risque modéré"},
+    {32, 45, 0, 25, -15, "Alerte sérieuse : Confirmation requise"},
+    {38, 100, 1, 0, 30, "Situation normale"},
+  };
+
+  int total = 0;
+  float score_final;
+  int total_cases = sizeof(test_cases_sg) / sizeof(TestCase_SG);
+  int correct = 0;
+
+  Serial.println("Test cases pour le SG en cours ...");
+  for (int i = 0; i < total_cases; i++){
+    TestCase_SG tc = test_cases_sg[i];
+    float SG = calcul_score_gravite(tc.temp_intern, tc.freq_card, tc.movement, tc.time_immobilite, tc.temp_ext);
+    const char* desc = evaluer_niveau_gravite(SG);
+
+    Serial.print("Donnees : (");
+    Serial.print(tc.temp_intern);
+    Serial.print(", ");
+    Serial.print(tc.freq_card);
+    Serial.print(", ");
+    Serial.print(tc.movement);
+    Serial.print(", ");
+    Serial.print(tc.time_immobilite);
+    Serial.print(", ");
+    Serial.print(tc.temp_ext);
+    Serial.print(") => Score : ");
+    Serial.print(SG);
+    Serial.print(", Description : ");
+    Serial.print(desc);
+    if(strcmp(desc, tc.expected) == 0){
+      Serial.println(" ✅ OK ");
+      correct++;
+    } 
+    else Serial.println(" ❌ Erreur");
+  }
+
+  score_final = (correct / (float)total_cases) * 100.0;
+  Serial.print("\nScore de precision pour SG est : ");
+  Serial.print(score_final);
+  Serial.println("/100");
+  Serial.println("Fin des tests cases pour le SG.");
+
+  struct TestCase_Dic {
+    const char* name;
+    float valeur;
+    bool attendu;
+  };
+
+  /* Test pour le dictionnaire de donnees */
+  TestCase_Dic test_cases_dic[] = {
+    {"FC", 60, true},      // Fréquence cardiaque normale
+    {"FC", 250, false},    // Trop élevé
+    {"FC", 20, false},     // Trop bas
+    {"T_c", 37, true},     // Température corporelle normale
+    {"T_c", 50, false},    // Trop élevée
+    {"T_c", 10, false},    // Trop basse
+    {"T_e", -10, true},    // Température extérieure normale
+    {"T_e", -100, false},  // Trop basse
+    {"T_e", 60, false},    // Trop élevée
+    {"t_immobile", 5000, true},  // Temps d'immobilité normal
+    {"t_immobile", 11000, false}, // Trop élevé
+    {"t_immobile", -1, false},   // Valeur négative
+    {"Inconnu", 50, false}      // Capteur inexistant
+  };
+
+  total_cases = sizeof(test_cases_dic) / sizeof(TestCase_Dic); 
+  correct = 0;
+
+  Serial.println("Test cases pour le dic de donnees en cours ...");
+  for(int i = 0; i < total_cases; i++){
+    bool res = check_val_dic(test_cases_dic[i].name, test_cases_dic[i].valeur);
+    if(res == test_cases_dic[i].attendu){
+      Serial.print(" ✅ OK ");
+      correct++;
+    }
+    else Serial.print(" ❌ Échec");
+    Serial.print(i + 1);
+    Serial.print(": ");
+    Serial.print(test_cases_dic[i].name);
+    Serial.print(" (");
+    Serial.print(test_cases_dic[i].valeur);
+    Serial.print(") -> ");
+    Serial.println(res ? "Valide" : "Invalide");
+  }
+
+  Serial.print("\nRésultat des tests : ");
+  Serial.print(correct);
+  Serial.print("/");
+  Serial.print(total_cases);
+  Serial.println(" réussis.");
+
+
 }
 
 void loop() {
