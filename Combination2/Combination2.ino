@@ -215,46 +215,46 @@ void setup() {
   GPSSerial.println(PMTK_Q_RELEASE);
   //GPS end
 
-  // //Firebase start
-  // initWiFi();
-  // timeClient.begin();
+  //Firebase start
+  initWiFi();
+  timeClient.begin();
 
-  // // Assign the api key (required)
-  // config.api_key = API_KEY;
+  // Assign the api key (required)
+  config.api_key = API_KEY;
 
-  // // Assign the user sign in credentials
-  // auth.user.email = USER_EMAIL;
-  // auth.user.password = USER_PASSWORD;
+  // Assign the user sign in credentials
+  auth.user.email = USER_EMAIL;
+  auth.user.password = USER_PASSWORD;
 
-  // // Assign the RTDB URL (required)
-  // config.database_url = DATABASE_URL;
+  // Assign the RTDB URL (required)
+  config.database_url = DATABASE_URL;
 
-  // Firebase.reconnectWiFi(true);
-  // fbdo.setResponseSize(4096);
+  Firebase.reconnectWiFi(true);
+  fbdo.setResponseSize(4096);
 
-  // // Assign the callback function for the long running token generation task */
-  // config.token_status_callback = tokenStatusCallback; //see addons/TokenHelper.h
+  // Assign the callback function for the long running token generation task */
+  config.token_status_callback = tokenStatusCallback; //see addons/TokenHelper.h
 
-  // // Assign the maximum retry of token generation
-  // config.max_token_generation_retry = 5;
+  // Assign the maximum retry of token generation
+  config.max_token_generation_retry = 5;
 
-  // // Initialize the library with the Firebase authen and config
-  // Firebase.begin(&config, &auth);
+  // Initialize the library with the Firebase authen and config
+  Firebase.begin(&config, &auth);
 
-  // // Getting the user UID might take a few seconds
-  // Serial.println("Getting User UID");
-  // while ((auth.token.uid) == "") {
-  //   Serial.print('.');
-  //   delay(1000);
-  // }
-  // // Print user UID
-  // uid = auth.token.uid.c_str();
-  // Serial.print("User UID: ");
-  // Serial.println(uid);
+  // Getting the user UID might take a few seconds
+  Serial.println("Getting User UID");
+  while ((auth.token.uid) == "") {
+    Serial.print('.');
+    delay(1000);
+  }
+  // Print user UID
+  uid = auth.token.uid.c_str();
+  Serial.print("User UID: ");
+  Serial.println(uid);
 
-  // // Update database path
-  // databasePath = "/UsersData/" + uid + "/readings";
-  // //Firebase end
+  // Update database path
+  databasePath = "/UsersData/" + uid + "/readings";
+  //Firebase end
 
   //test_cases();
 
@@ -304,12 +304,13 @@ const float intern_temp(){
 unsigned long last_mov = 0;
 unsigned long temps_immobile = 0;
 
-void accelerometer(){
+int accelerometer(){
   //Accelerometer start
   int movement = 0 ; //by default we assume no mouvement
   if(mpu.getMotionInterruptStatus() ) {
     /* Get new sensor events with the readings */
     movement = 1;// If one of the measured value changed, motion detected
+    temps_immobile = 0;
     last_mov = millis(); // Mise a jour du dernier mouvement
     sensors_event_t a, g, temp;
     mpu.getEvent(&a, &g, &temp);
@@ -342,9 +343,19 @@ void accelerometer(){
     Serial.print(temps_immobile);
     Serial.println(" sec");
   }
+  return movement;
   //Accelerometer end
 
 }
+
+struct GPS_struct{
+  char date[100];
+  char time[100];
+  float speed;
+  float altitude;
+  float longitude;
+  float latitude;
+};
 
 void GPS_func(){
   //GPS start
@@ -598,7 +609,8 @@ void test_cases(){
 
 }
 
-void send_firebase(){
+void send_firebase(const float& temp_ext, const float& int_temp, const float& hum, const int& mov){
+//, const char* gps_date, const char* gps_time, const float& speed, const float& alt, const float& longi, const float& lat){
   //firebase start
   // Send new readings to database
   if (Firebase.ready() ){ //&& (millis() - sendDataPrevMillis > timerDelay || sendDataPrevMillis == 0)
@@ -611,10 +623,17 @@ void send_firebase(){
 
     parentPath= databasePath + "/" + String(timestamp);
 
-    json.set(extTempPath.c_str(), String(5566));
-    json.set(humPath.c_str(), String(44345));
-    json.set(intTempPath.c_str(), String(65656));
+    json.set(extTempPath.c_str(), String(temp_ext));
+    json.set(intTempPath.c_str(), String(int_temp));
+    json.set(humPath.c_str(), String(hum));
+    json.set(movPath.c_str(), String(mov));
     json.set(timePath, String(timestamp));
+    // json.set(GPSdate.c_str(), String(gps_date));
+    // json.set(GPStime.c_str(), String(gps_time));
+    // json.set(speedPath.c_str(), String(speed));
+    // json.set(altPath.c_str(), String(alt));
+    // json.set(longDegPath.c_str(), String(longi));
+    // json.set(latDegPath.c_str(), String(lat));
     Serial.printf("Set json... %s\n", Firebase.RTDB.setJSON(&fbdo, parentPath.c_str(), &json) ? "ok" : fbdo.errorReason().c_str());
   }
   //firebase end
@@ -639,13 +658,15 @@ void loop() {
   Serial.print("Depuis le main, Internal Temp: "); 
   Serial.print(my_intern_temp, 4); Serial.print("*C\n"); 
 
-  accelerometer();
+  int mov = accelerometer();
+  Serial.print("Mouvement 0 ou 1 ? => ");
+  Serial.println(mov);
   Serial.print("Temps immobile depuis le main : ");
   Serial.println(temps_immobile);
 
   //GPS_func(); 
 
-  //send_firebase();
+  send_firebase(my_extern_temp_struct->t, my_intern_temp, my_extern_temp_struct->h, mov);
 
   // test_cases();
   // digitalWrite(LED_PIN, HIGH);
