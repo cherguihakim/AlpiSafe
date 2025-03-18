@@ -349,16 +349,25 @@ int accelerometer(){
 }
 
 struct GPS_struct{
-  char date[100];
-  char time[100];
-  float speed;
+  char* date;
+  char* time;
+  float speed_kmh;
   float altitude;
   float longitude;
   float latitude;
 };
 
-void GPS_func(){
+void getGPSDateTime(char* dateStr, char* timeStr, size_t size) {
+    // Formater la date au format "JJ/MM/AAAA"
+    snprintf(dateStr, size, "%02d/%02d/20%02d", GPS.day, GPS.month, GPS.year);
+
+    // Formater l'heure au format "HH:MM:SS"
+    snprintf(timeStr, size, "%02d:%02d:%02d", GPS.hour - 4, GPS.minute, GPS.seconds);
+}
+
+struct GPS_struct* GPS_func(){
   //GPS start
+  static struct GPS_struct my_gps;
   // read data from the GPS in the 'main loop'
   char c = GPS.read();
   // if you want to debug, this is a good time to do it!
@@ -371,32 +380,48 @@ void GPS_func(){
     // so be very wary if using OUTPUT_ALLDATA and trying to print out data
     Serial.print(GPS.lastNMEA()); // this also sets the newNMEAreceived() flag to false
     if (!GPS.parse(GPS.lastNMEA())) // this also sets the newNMEAreceived() flag to false
-      return; // we can fail to parse a sentence in which case we should just wait for another
+      return NULL; // we can fail to parse a sentence in which case we should just wait for another
   }
 
   // approximately every 2 seconds or so, print out the current stats
   
   if (millis() - timer > 2000) { //
     timer = millis(); // reset the timer
-    Serial.print("\nTime: ");
-    if (GPS.hour < 10) { Serial.print('0'); }
-    Serial.print((GPS.hour-4), DEC); Serial.print(':');
-    if (GPS.minute < 10) { Serial.print('0'); }
-    Serial.print(GPS.minute, DEC); Serial.print(':');
-    if (GPS.seconds < 10) { Serial.print('0'); }
-    Serial.print(GPS.seconds, DEC); Serial.print('.');
-    if (GPS.milliseconds < 10) {
-      Serial.print("00");
-    } else if (GPS.milliseconds > 9 && GPS.milliseconds < 100) {
-      Serial.print("0");
-    }
-    Serial.println(GPS.milliseconds);
-    Serial.print("Date: ");
-    Serial.print(GPS.day, DEC); Serial.print('/');
-    Serial.print(GPS.month, DEC); Serial.print("/20");
-    Serial.println(GPS.year, DEC);
-    Serial.print("Fix: "); Serial.print((int)GPS.fix);
-    Serial.print(" quality: "); Serial.println((int)GPS.fixquality);
+    // Serial.print("\nTime: ");
+    // if (GPS.hour < 10) { Serial.print('0'); }
+    // Serial.print((GPS.hour-4), DEC); Serial.print(':');
+    // if (GPS.minute < 10) { Serial.print('0'); }
+    // Serial.print(GPS.minute, DEC); Serial.print(':');
+    // if (GPS.seconds < 10) { Serial.print('0'); }
+    // Serial.print(GPS.seconds, DEC); Serial.print('.');
+    // if (GPS.milliseconds < 10) {
+    //   Serial.print("00");
+    // } else if (GPS.milliseconds > 9 && GPS.milliseconds < 100) {
+    //   Serial.print("0");
+    // }
+    // Serial.println(GPS.milliseconds);
+    // Serial.print("Date: ");
+    // Serial.print(GPS.day, DEC); Serial.print('/');
+    // Serial.print(GPS.month, DEC); Serial.print("/20");
+    // Serial.println(GPS.year, DEC);
+    // Serial.print("Fix: "); Serial.print((int)GPS.fix);
+    // Serial.print(" quality: "); Serial.println((int)GPS.fixquality);
+
+    // Déclaration des buffers pour stocker la date et l'heure
+    char dateStr[20];  // "DD/MM/YYYY\0" 
+    char timeStr[20];   // "HH:MM:SS\0" 
+
+    // Obtenir la date et l'heure
+    getGPSDateTime(dateStr, timeStr, sizeof(dateStr));
+    my_gps.date = dateStr;
+    my_gps.time = timeStr;
+
+    // Affichage
+    Serial.print("Date GPS: ");
+    Serial.println(dateStr);
+    Serial.print("Heure GPS: ");
+    Serial.println(timeStr);
+
     if (GPS.fix) {
       Serial.print("Location: ");
       Serial.print(GPS.latitude, 4); Serial.print(GPS.lat);
@@ -413,8 +438,15 @@ void GPS_func(){
       Serial.print("Satellites: "); Serial.println((int)GPS.satellites);
       Serial.print("Antenna status: "); Serial.println((int)GPS.antenna);
       latDeg=GPS.latitudeDegrees; longDeg=GPS.longitudeDegrees; speedKMH=1.852*GPS.speed; Altitude=GPS.altitude;
+
+      my_gps.speed_kmh = 1.852*GPS.speed;
+      my_gps.altitude = GPS.altitude;
+      my_gps.longitude = GPS.longitudeDegrees;
+      my_gps.latitude = GPS.latitudeDegrees;
+
     }
   }
+  return &my_gps;
   //GPS end
 }
 
@@ -609,8 +641,7 @@ void test_cases(){
 
 }
 
-void send_firebase(const float& temp_ext, const float& int_temp, const float& hum, const int& mov){
-//, const char* gps_date, const char* gps_time, const float& speed, const float& alt, const float& longi, const float& lat){
+void send_firebase(const float& temp_ext, const float& int_temp, const float& hum, const int& mov, const char* gps_date, const char* gps_time, const float& speed, const float& alt, const float& longi, const float& lat){
   //firebase start
   // Send new readings to database
   if (Firebase.ready() ){ //&& (millis() - sendDataPrevMillis > timerDelay || sendDataPrevMillis == 0)
@@ -628,12 +659,12 @@ void send_firebase(const float& temp_ext, const float& int_temp, const float& hu
     json.set(humPath.c_str(), String(hum));
     json.set(movPath.c_str(), String(mov));
     json.set(timePath, String(timestamp));
-    // json.set(GPSdate.c_str(), String(gps_date));
-    // json.set(GPStime.c_str(), String(gps_time));
-    // json.set(speedPath.c_str(), String(speed));
-    // json.set(altPath.c_str(), String(alt));
-    // json.set(longDegPath.c_str(), String(longi));
-    // json.set(latDegPath.c_str(), String(lat));
+    json.set(GPSdate.c_str(), String(gps_date));
+    json.set(GPStime.c_str(), String(gps_time));
+    json.set(speedPath.c_str(), String(speed));
+    json.set(altPath.c_str(), String(alt));
+    json.set(longDegPath.c_str(), String(longi));
+    json.set(latDegPath.c_str(), String(lat));
     Serial.printf("Set json... %s\n", Firebase.RTDB.setJSON(&fbdo, parentPath.c_str(), &json) ? "ok" : fbdo.errorReason().c_str());
   }
   //firebase end
@@ -658,15 +689,17 @@ void loop() {
   Serial.print("Depuis le main, Internal Temp: "); 
   Serial.print(my_intern_temp, 4); Serial.print("*C\n"); 
 
+  /* Recuperation du mouvement et du temps d immobilite */
   int mov = accelerometer();
   Serial.print("Mouvement 0 ou 1 ? => ");
   Serial.println(mov);
   Serial.print("Temps immobile depuis le main : ");
   Serial.println(temps_immobile);
 
-  //GPS_func(); 
-
-  send_firebase(my_extern_temp_struct->t, my_intern_temp, my_extern_temp_struct->h, mov);
+  /* Envoyer les donnees a firebase */
+  const struct GPS_struct* my_gps_struct = GPS_func();
+  send_firebase(my_extern_temp_struct->t, my_intern_temp, my_extern_temp_struct->h, mov, 
+                my_gps_struct->date, my_gps_struct->time, my_gps_struct->speed_kmh, my_gps_struct->altitude, my_gps_struct->longitude, my_gps_struct->latitude);
 
   // test_cases();
   // digitalWrite(LED_PIN, HIGH);
