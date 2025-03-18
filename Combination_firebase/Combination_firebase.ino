@@ -51,8 +51,8 @@ uint32_t timer = millis();
 #include "addons/RTDBHelper.h"
 
 // Insert your network credentials
-#define WIFI_SSID ""
-#define WIFI_PASSWORD ""
+#define WIFI_SSID "Esp32"
+#define WIFI_PASSWORD "adam19t!"
 
 // Insert Firebase project API Key
 #define API_KEY "AIzaSyC9IodquzD8AbE-0-MGZDm-osyQjg8pVgs"

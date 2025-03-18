@@ -38,6 +38,100 @@ Adafruit_GPS GPS(&GPSSerial);
 uint32_t timer = millis();
 //GPS end
 
+/*LED*/
+#define LED_PIN 32
+
+/*BUZZER*/
+#define BUZZER_PIN 33
+
+//Firebase start
+#include <Arduino.h>
+#include <WiFi.h>
+#include <Firebase_ESP_Client.h>
+#include <NTPClient.h>
+#include <WiFiUdp.h>
+
+// Provide the token generation process info.
+#include "addons/TokenHelper.h"
+// Provide the RTDB payload printing info and other helper functions.
+#include "addons/RTDBHelper.h"
+
+// Insert your network credentials
+#define WIFI_SSID "Esp32"
+#define WIFI_PASSWORD "adam19t!"
+
+// Insert Firebase project API Key
+#define API_KEY "AIzaSyC9IodquzD8AbE-0-MGZDm-osyQjg8pVgs"
+
+// Insert Authorized Email and Corresponding Password
+#define USER_EMAIL "Alpiniste@gmail.com"
+#define USER_PASSWORD "Qwerty1234567"
+
+// Insert RTDB URLefine the RTDB URL
+#define DATABASE_URL "https://alpisafe-ce734-default-rtdb.firebaseio.com/"
+
+
+// Define Firebase objects
+FirebaseData fbdo;
+FirebaseAuth auth;
+FirebaseConfig config;
+
+// Variable to save USER UID
+String uid;
+
+// Database main path (to be updated in setup with the user UID)
+String databasePath;
+// Database child nodes
+String extTempPath = "/ExternalTemperature";
+String intTempPath = "/InternalTemperature";
+String humPath = "/humidity";
+String movPath = "/movement"; //bool
+String timePath = "/timestamp";
+String GPSdate = "/GPSdate";
+String GPStime = "/GPStime";
+String speedPath = "/speed";
+String altPath = "/altitude";
+String longDegPath = "/longitudeDegrees";
+String latDegPath = "/latitudeDegrees";
+
+// Parent Node (to be updated in every loop)
+String parentPath;
+
+FirebaseJson json;
+
+// Define NTP Client to get time
+WiFiUDP ntpUDP;
+NTPClient timeClient(ntpUDP, "pool.ntp.org");
+
+// randoom values
+int timestamp;
+
+// Timer variables (send new readings every 10 sec)
+unsigned long sendDataPrevMillis = 0;
+unsigned long timerDelay = 10000;
+
+
+// Initialize WiFi
+void initWiFi() {
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  Serial.print("Connecting to WiFi ..");
+  while (WiFi.status() != WL_CONNECTED) {
+    Serial.print('.');
+    delay(1000);
+  }
+  Serial.println(WiFi.localIP());
+  Serial.println();
+}
+
+// Function that gets current epoch time
+unsigned long getTime() {
+  timeClient.update();
+  unsigned long now = timeClient.getEpochTime();
+  return now;
+}
+//Firebase  end
+
+
 /* Definition des dictionnaires de donnees pour chaque capteur */
 
 /*Definition d un dictionnaire de donnees generique */
@@ -64,6 +158,10 @@ bool check_val_dic(const char* capteur, const float& valeur ){
 
 void setup() {
   // put your setup code here, to run once:
+
+  pinMode(LED_PIN, OUTPUT);
+  pinMode(BUZZER_PIN, OUTPUT);
+  
   Serial.begin(115200);
   Serial.println(F("Start"));
   dht.begin();
@@ -116,6 +214,49 @@ void setup() {
   // Ask for firmware version
   GPSSerial.println(PMTK_Q_RELEASE);
   //GPS end
+
+  //Firebase start
+  initWiFi();
+  timeClient.begin();
+
+  // Assign the api key (required)
+  config.api_key = API_KEY;
+
+  // Assign the user sign in credentials
+  auth.user.email = USER_EMAIL;
+  auth.user.password = USER_PASSWORD;
+
+  // Assign the RTDB URL (required)
+  config.database_url = DATABASE_URL;
+
+  Firebase.reconnectWiFi(true);
+  fbdo.setResponseSize(4096);
+
+  // Assign the callback function for the long running token generation task */
+  config.token_status_callback = tokenStatusCallback; //see addons/TokenHelper.h
+
+  // Assign the maximum retry of token generation
+  config.max_token_generation_retry = 5;
+
+  // Initialize the library with the Firebase authen and config
+  Firebase.begin(&config, &auth);
+
+  // Getting the user UID might take a few seconds
+  Serial.println("Getting User UID");
+  while ((auth.token.uid) == "") {
+    Serial.print('.');
+    delay(1000);
+  }
+  // Print user UID
+  uid = auth.token.uid.c_str();
+  Serial.print("User UID: ");
+  Serial.println(uid);
+
+  // Update database path
+  databasePath = "/UsersData/" + uid + "/readings";
+  //Firebase end
+
+  //test_cases();
 
 }
 
@@ -326,7 +467,7 @@ float calcul_score_gravite (const float& T_c, const int& FC, const int& mov, con
 // Donne une interpretation du score de gravite
 const char* evaluer_niveau_gravite (const float& SG){
   if (SG < 0.3) return "Situation normale";
-  else if ( SG >= 0.3 && SG < 0.6) return "Pre alerte : Risque modere";
+  else if ( SG >= 0.3 && SG < 0.6) return "Pre-alerte : Risque modere";
   else if ( SG >= 0.6 && SG < 0.8) return "Alerte serieuse : Confirmation requise";
   else return "Alerte critique";
 }
@@ -344,10 +485,10 @@ void test_cases(){
   };
 
   TestCase_SG test_cases_sg[] = {
-    {34, 130, 0, 35, -10, "Alerte sérieuse : Confirmation requise"},
+    {34, 130, 0, 35, -10, "Alerte serieuse : Confirmation requise"},
     {37, 80, 1, 5, 20, "Situation normale"},
-    {40, 150, 0, 30, 35, "Pré-alerte : Risque modéré"},
-    {32, 45, 0, 25, -15, "Alerte sérieuse : Confirmation requise"},
+    {40, 150, 0, 30, 35, "Pre-alerte : Risque modere"},
+    {32, 45, 0, 25, -15, "Alerte serieuse : Confirmation requise"},
     {38, 100, 1, 0, 30, "Situation normale"},
   };
 
@@ -442,6 +583,29 @@ void test_cases(){
 
 }
 
+void send_firebase(){
+  //firebase start
+  // Send new readings to database
+  if (Firebase.ready() ){ //&& (millis() - sendDataPrevMillis > timerDelay || sendDataPrevMillis == 0)
+    sendDataPrevMillis = millis();
+
+    //Get current timestamp
+    timestamp = getTime();
+    Serial.print ("time: ");
+    Serial.println (timestamp);
+
+    parentPath= databasePath + "/" + String(timestamp);
+
+    json.set(extTempPath.c_str(), String(5566));
+    json.set(humPath.c_str(), String(44345));
+    json.set(intTempPath.c_str(), String(65656));
+    json.set(timePath, String(timestamp));
+    Serial.printf("Set json... %s\n", Firebase.RTDB.setJSON(&fbdo, parentPath.c_str(), &json) ? "ok" : fbdo.errorReason().c_str());
+  }
+  //firebase end
+
+}
+
 void loop() {
   // put your main code here, to run repeatedly:
   delay (10000);// delai arbitraire 
@@ -454,7 +618,14 @@ void loop() {
 
   GPS_func(); 
 
-  //test_cases();
+  send_firebase();
+
+  // test_cases();
+  // digitalWrite(LED_PIN, HIGH);
+  // digitalWrite(BUZZER_PIN, HIGH);
+  // delay(5000);
+  // digitalWrite(LED_PIN, LOW);
+  // digitalWrite(BUZZER_PIN, LOW);
 
   
   //Serial.println();
