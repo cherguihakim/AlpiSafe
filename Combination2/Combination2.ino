@@ -215,83 +215,94 @@ void setup() {
   GPSSerial.println(PMTK_Q_RELEASE);
   //GPS end
 
-  //Firebase start
-  initWiFi();
-  timeClient.begin();
+  // //Firebase start
+  // initWiFi();
+  // timeClient.begin();
 
-  // Assign the api key (required)
-  config.api_key = API_KEY;
+  // // Assign the api key (required)
+  // config.api_key = API_KEY;
 
-  // Assign the user sign in credentials
-  auth.user.email = USER_EMAIL;
-  auth.user.password = USER_PASSWORD;
+  // // Assign the user sign in credentials
+  // auth.user.email = USER_EMAIL;
+  // auth.user.password = USER_PASSWORD;
 
-  // Assign the RTDB URL (required)
-  config.database_url = DATABASE_URL;
+  // // Assign the RTDB URL (required)
+  // config.database_url = DATABASE_URL;
 
-  Firebase.reconnectWiFi(true);
-  fbdo.setResponseSize(4096);
+  // Firebase.reconnectWiFi(true);
+  // fbdo.setResponseSize(4096);
 
-  // Assign the callback function for the long running token generation task */
-  config.token_status_callback = tokenStatusCallback; //see addons/TokenHelper.h
+  // // Assign the callback function for the long running token generation task */
+  // config.token_status_callback = tokenStatusCallback; //see addons/TokenHelper.h
 
-  // Assign the maximum retry of token generation
-  config.max_token_generation_retry = 5;
+  // // Assign the maximum retry of token generation
+  // config.max_token_generation_retry = 5;
 
-  // Initialize the library with the Firebase authen and config
-  Firebase.begin(&config, &auth);
+  // // Initialize the library with the Firebase authen and config
+  // Firebase.begin(&config, &auth);
 
-  // Getting the user UID might take a few seconds
-  Serial.println("Getting User UID");
-  while ((auth.token.uid) == "") {
-    Serial.print('.');
-    delay(1000);
-  }
-  // Print user UID
-  uid = auth.token.uid.c_str();
-  Serial.print("User UID: ");
-  Serial.println(uid);
+  // // Getting the user UID might take a few seconds
+  // Serial.println("Getting User UID");
+  // while ((auth.token.uid) == "") {
+  //   Serial.print('.');
+  //   delay(1000);
+  // }
+  // // Print user UID
+  // uid = auth.token.uid.c_str();
+  // Serial.print("User UID: ");
+  // Serial.println(uid);
 
-  // Update database path
-  databasePath = "/UsersData/" + uid + "/readings";
-  //Firebase end
+  // // Update database path
+  // databasePath = "/UsersData/" + uid + "/readings";
+  // //Firebase end
 
   //test_cases();
 
 }
 
-void extern_temp(){
+struct extern_temp_struct {
+  float h;
+  float t;
+};
+
+const struct extern_temp_struct* extern_temp(){
   //External temp start
-  float h = dht.readHumidity();
-  float t = dht.readTemperature();
+  static struct extern_temp_struct my_extern_temp; // Utilsation de memoire statique 
+  my_extern_temp.h = dht.readHumidity();
+  my_extern_temp.t = dht.readTemperature();
   // Check if any reads failed and exit early (to try again).
-  if (isnan(h) || isnan(t) ) {
+  if (isnan(my_extern_temp.h) || isnan(my_extern_temp.t) ) {
     Serial.println(F("Failed to read from DHT sensor!"));
-    return;
+    return NULL;
   }
-  Serial.print(F("Humidity: "));
-  Serial.print(h);
-  Serial.print(F("%  External Temperature: "));
-  Serial.print(t);
-  Serial.println(F("°C "));
+  // Serial.print(F("Humidity: "));
+  // Serial.print(h);
+  // Serial.print(F("%  External Temperature: "));
+  // Serial.print(t);
+  // Serial.println(F("°C "));
+  return &my_extern_temp;
   //External temperature end
 
 }
 
-void intern_temp(){
+const float intern_temp(){
   //Internal temperature start
   tempsensor.wake();
   //Serial.print("Resolution in mode: ");
   //Serial.println (tempsensor.getResolution());
   float celsius = tempsensor.readTempC();
-  Serial.print("Internal Temp: "); 
-  Serial.print(celsius, 4); Serial.print("*C\n"); 
+  // Serial.print("Internal Temp: "); 
+  // Serial.print(celsius, 4); Serial.print("*C\n"); 
   delay(500);
   Serial.println("Shutdown MCP9808.... ");
   tempsensor.shutdown_wake(1);
   //Serial.println("");
+  return celsius;
   //Internal temp end
 }
+
+unsigned long last_mov = 0;
+unsigned long temps_immobile = 0;
 
 void accelerometer(){
   //Accelerometer start
@@ -299,33 +310,37 @@ void accelerometer(){
   if(mpu.getMotionInterruptStatus() ) {
     /* Get new sensor events with the readings */
     movement = 1;// If one of the measured value changed, motion detected
+    last_mov = millis(); // Mise a jour du dernier mouvement
     sensors_event_t a, g, temp;
     mpu.getEvent(&a, &g, &temp);
 
-    /* Print out the values */
-    Serial.print("AccelX:");
-    Serial.print(a.acceleration.x);
-    Serial.print(",");
-    Serial.print("AccelY:");
-    Serial.print(a.acceleration.y);
-    Serial.print(",");
-    Serial.print("AccelZ:");
-    Serial.print(a.acceleration.z);
-    Serial.print(", ");
-    Serial.print("GyroX:");
-    Serial.print(g.gyro.x);
-    Serial.print(",");
-    Serial.print("GyroY:");
-    Serial.print(g.gyro.y);
-    Serial.print(",");
-    Serial.print("GyroZ:");
-    Serial.print(g.gyro.z);
-    Serial.println("");
+    // /* Print out the values */
+    // Serial.print("AccelX:");
+    // Serial.print(a.acceleration.x);
+    // Serial.print(",");
+    // Serial.print("AccelY:");
+    // Serial.print(a.acceleration.y);
+    // Serial.print(",");
+    // Serial.print("AccelZ:");
+    // Serial.print(a.acceleration.z);
+    // Serial.print(", ");
+    // Serial.print("GyroX:");
+    // Serial.print(g.gyro.x);
+    // Serial.print(",");
+    // Serial.print("GyroY:");
+    // Serial.print(g.gyro.y);
+    // Serial.print(",");
+    // Serial.print("GyroZ:");
+    // Serial.print(g.gyro.z);
+    // Serial.println("");
   }
   if(movement){
     Serial.println("Movement Detected");
   }else{
-    Serial.println("Stationary");
+    temps_immobile = (millis() - last_mov) / 1000;
+    Serial.print("Stationary, Temps immobile : ");
+    Serial.print(temps_immobile);
+    Serial.println(" sec");
   }
   //Accelerometer end
 
@@ -610,15 +625,27 @@ void loop() {
   // put your main code here, to run repeatedly:
   delay (10000);// delai arbitraire 
 
-  extern_temp();
+  /* Lecture de la temperature externe */ 
+  const struct extern_temp_struct* my_extern_temp_struct = extern_temp();
+  Serial.println("Test de la memoire statique ...");
+  Serial.print(F("Humidity: "));
+  Serial.print(my_extern_temp_struct->h);
+  Serial.print(F("%  External Temperature: "));
+  Serial.print(my_extern_temp_struct->t);
+  Serial.println(F("°C "));
 
-  intern_temp();
+  /* Lecture de la temperature interne */
+  const float my_intern_temp = intern_temp();
+  Serial.print("Depuis le main, Internal Temp: "); 
+  Serial.print(my_intern_temp, 4); Serial.print("*C\n"); 
 
   accelerometer();
+  Serial.print("Temps immobile depuis le main : ");
+  Serial.println(temps_immobile);
 
-  GPS_func(); 
+  //GPS_func(); 
 
-  send_firebase();
+  //send_firebase();
 
   // test_cases();
   // digitalWrite(LED_PIN, HIGH);
