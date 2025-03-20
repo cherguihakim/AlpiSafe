@@ -333,6 +333,7 @@ struct GPS_struct* GPS_func(){
     Serial.print("Heure GPS: ");
     Serial.println(timeStr);
 
+    Serial.print("Fix: "); Serial.print((int)GPS.fix);
     if (GPS.fix) {
       Serial.print("Location: ");
       Serial.print(GPS.latitude, 4); Serial.print(GPS.lat);
