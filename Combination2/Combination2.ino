@@ -38,11 +38,14 @@ Adafruit_GPS GPS(&GPSSerial);
 uint32_t timer = millis();
 //GPS end
 
-/*LED*/
+/* LED */
 #define LED_PIN 32
 
-/*BUZZER*/
+/* BUZZER */
 #define BUZZER_PIN 33
+
+/* BUTTON */
+#define BUTTON_PIN 34
 
 //Firebase start
 #include <Arduino.h>
@@ -154,110 +157,6 @@ bool check_val_dic(const char* capteur, const float& valeur ){
     if(strcmp(c.ID, capteur) == 0) return (valeur >= c.min && valeur <= c.max);
   }
   return false; //Capteur non reconnu ou valeurs invalides
-}
-
-void setup() {
-  // put your setup code here, to run once:
-
-  pinMode(LED_PIN, OUTPUT);
-  pinMode(BUZZER_PIN, OUTPUT);
-  
-  Serial.begin(115200);
-  Serial.println(F("Start"));
-  dht.begin();
-
-  //internal temperature start
-  if (!tempsensor.begin(0x18)) {
-    Serial.println("Couldn't find MCP9808! Check your connections and verify the address is correct.");
-    while (1);
-  }
-  Serial.println("Found MCP9808!");
-  tempsensor.setResolution(3);
-  //internal temperature end
-
-  //accelerometer start
-  if (!mpu.begin()) {
-    Serial.println("Failed to find MPU6050 chip");
-    while (1) {
-      delay(10);
-    }
-  }
-  Serial.println("MPU6050 Found!");
-  mpu.setHighPassFilter(MPU6050_HIGHPASS_0_63_HZ);
-  mpu.setMotionDetectionThreshold(1);
-  mpu.setMotionDetectionDuration(20);
-  mpu.setInterruptPinLatch(true);	// Keep it latched.  Will turn off when reinitialized.
-  mpu.setInterruptPinPolarity(true);
-  mpu.setMotionInterrupt(true);
-  //accelerometer end
-
-  //GPS start
-  GPSSerial.begin(9600, SERIAL_8N1, GPS_RX, GPS_TX);  // Start GPS communication
-  // 9600 NMEA is the default baud rate for Adafruit MTK GPS's- some use 4800
-  GPS.begin(9600 );
-  // uncomment this line to turn on RMC (recommended minimum) and GGA (fix data) including altitude
-  GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCGGA);
-  // uncomment this line to turn on only the "minimum recommended" data
-  //GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCONLY);
-  // For parsing data, we don't suggest using anything but either RMC only or RMC+GGA since
-  // the parser doesn't care about other sentences at this time
-  // Set the update rate
-  GPS.sendCommand(PMTK_SET_NMEA_UPDATE_1HZ); // 1 Hz update rate
-  // For the parsing code to work nicely and have time to sort thru the data, and
-  // print it out we don't suggest using anything higher than 1 Hz
-
-  // Request updates on antenna status, comment out to keep quiet
-  GPS.sendCommand(PGCMD_ANTENNA);
-
-  delay(1000);
-
-  // Ask for firmware version
-  GPSSerial.println(PMTK_Q_RELEASE);
-  //GPS end
-
-  //Firebase start
-  initWiFi();
-  timeClient.begin();
-
-  // Assign the api key (required)
-  config.api_key = API_KEY;
-
-  // Assign the user sign in credentials
-  auth.user.email = USER_EMAIL;
-  auth.user.password = USER_PASSWORD;
-
-  // Assign the RTDB URL (required)
-  config.database_url = DATABASE_URL;
-
-  Firebase.reconnectWiFi(true);
-  fbdo.setResponseSize(4096);
-
-  // Assign the callback function for the long running token generation task */
-  config.token_status_callback = tokenStatusCallback; //see addons/TokenHelper.h
-
-  // Assign the maximum retry of token generation
-  config.max_token_generation_retry = 5;
-
-  // Initialize the library with the Firebase authen and config
-  Firebase.begin(&config, &auth);
-
-  // Getting the user UID might take a few seconds
-  Serial.println("Getting User UID");
-  while ((auth.token.uid) == "") {
-    Serial.print('.');
-    delay(1000);
-  }
-  // Print user UID
-  uid = auth.token.uid.c_str();
-  Serial.print("User UID: ");
-  Serial.println(uid);
-
-  // Update database path
-  databasePath = "/UsersData/" + uid + "/readings";
-  //Firebase end
-
-  //test_cases();
-
 }
 
 struct extern_temp_struct {
@@ -523,7 +422,7 @@ float calcul_score_gravite (const float& T_c, const int& FC, const int& mov, con
 }
 
 // Donne une interpretation du score de gravite
-const char* evaluer_niveau_gravite (const float& SG){
+char* evaluer_niveau_gravite (const float& SG){
   if (SG < 0.3) return "Situation normale";
   else if ( SG >= 0.3 && SG < 0.6) return "Pre-alerte : Risque modere";
   else if ( SG >= 0.6 && SG < 0.8) return "Alerte serieuse : Confirmation requise";
@@ -531,115 +430,115 @@ const char* evaluer_niveau_gravite (const float& SG){
 }
 
 /* Tests unitaires pour verifier le bon fonctionnement*/
-void test_cases(){
-  /*Tests pour le score de gravite */
-  struct TestCase_SG {
-    const float temp_intern;
-    const int freq_card;
-    const int movement;
-    const float time_immobilite;
-    const float temp_ext;
-    const char* expected;
-  };
+// void test_cases(){
+//   /*Tests pour le score de gravite */
+//   struct TestCase_SG {
+//     const float temp_intern;
+//     const int freq_card;
+//     const int movement;
+//     const float time_immobilite;
+//     const float temp_ext;
+//     const char* expected;
+//   };
 
-  TestCase_SG test_cases_sg[] = {
-    {34, 130, 0, 35, -10, "Alerte serieuse : Confirmation requise"},
-    {37, 80, 1, 5, 20, "Situation normale"},
-    {40, 150, 0, 30, 35, "Pre-alerte : Risque modere"},
-    {32, 45, 0, 25, -15, "Alerte serieuse : Confirmation requise"},
-    {38, 100, 1, 0, 30, "Situation normale"},
-  };
+//   TestCase_SG test_cases_sg[] = {
+//     {34, 130, 0, 35, -10, "Alerte serieuse : Confirmation requise"},
+//     {37, 80, 1, 5, 20, "Situation normale"},
+//     {40, 150, 0, 30, 35, "Pre-alerte : Risque modere"},
+//     {32, 45, 0, 25, -15, "Alerte serieuse : Confirmation requise"},
+//     {38, 100, 1, 0, 30, "Situation normale"},
+//   };
 
-  int total = 0;
-  float score_final;
-  int total_cases = sizeof(test_cases_sg) / sizeof(TestCase_SG);
-  int correct = 0;
+//   int total = 0;
+//   float score_final;
+//   int total_cases = sizeof(test_cases_sg) / sizeof(TestCase_SG);
+//   int correct = 0;
 
-  Serial.println("Tests unitaires pour le SG en cours ...");
-  for (int i = 0; i < total_cases; i++){
-    TestCase_SG tc = test_cases_sg[i];
-    float SG = calcul_score_gravite(tc.temp_intern, tc.freq_card, tc.movement, tc.time_immobilite, tc.temp_ext);
-    const char* desc = evaluer_niveau_gravite(SG);
+//   Serial.println("Tests unitaires pour le SG en cours ...");
+//   for (int i = 0; i < total_cases; i++){
+//     TestCase_SG tc = test_cases_sg[i];
+//     float SG = calcul_score_gravite(tc.temp_intern, tc.freq_card, tc.movement, tc.time_immobilite, tc.temp_ext);
+//     const char* desc = evaluer_niveau_gravite(SG);
 
-    Serial.print("Donnees : (");
-    Serial.print(tc.temp_intern);
-    Serial.print(", ");
-    Serial.print(tc.freq_card);
-    Serial.print(", ");
-    Serial.print(tc.movement);
-    Serial.print(", ");
-    Serial.print(tc.time_immobilite);
-    Serial.print(", ");
-    Serial.print(tc.temp_ext);
-    Serial.print(") => Score : ");
-    Serial.print(SG);
-    Serial.print(", Description : ");
-    Serial.print(desc);
-    if(strcmp(desc, tc.expected) == 0){
-      Serial.println(" ✅ OK ");
-      correct++;
-    } 
-    else Serial.println(" ❌ Erreur");
-  }
+//     Serial.print("Donnees : (");
+//     Serial.print(tc.temp_intern);
+//     Serial.print(", ");
+//     Serial.print(tc.freq_card);
+//     Serial.print(", ");
+//     Serial.print(tc.movement);
+//     Serial.print(", ");
+//     Serial.print(tc.time_immobilite);
+//     Serial.print(", ");
+//     Serial.print(tc.temp_ext);
+//     Serial.print(") => Score : ");
+//     Serial.print(SG);
+//     Serial.print(", Description : ");
+//     Serial.print(desc);
+//     if(strcmp(desc, tc.expected) == 0){
+//       Serial.println(" ✅ OK ");
+//       correct++;
+//     } 
+//     else Serial.println(" ❌ Erreur");
+//   }
 
-  score_final = (correct / (float)total_cases) * 100.0;
-  Serial.print("\nScore de precision pour SG est : ");
-  Serial.print(score_final);
-  Serial.println("/100");
-  Serial.println("Fin des tests unitaires pour le SG.");
+//   score_final = (correct / (float)total_cases) * 100.0;
+//   Serial.print("\nScore de precision pour SG est : ");
+//   Serial.print(score_final);
+//   Serial.println("/100");
+//   Serial.println("Fin des tests unitaires pour le SG.");
 
-  struct TestCase_Dic {
-    const char* name;
-    float valeur;
-    bool attendu;
-  };
+//   struct TestCase_Dic {
+//     const char* name;
+//     float valeur;
+//     bool attendu;
+//   };
 
-  /* Test pour le dictionnaire de donnees */
-  TestCase_Dic test_cases_dic[] = {
-    {"FC", 60, true},      // Fréquence cardiaque normale
-    {"FC", 250, false},    // Trop élevé
-    {"FC", 20, false},     // Trop bas
-    {"T_c", 37, true},     // Température corporelle normale
-    {"T_c", 50, false},    // Trop élevée
-    {"T_c", 10, false},    // Trop basse
-    {"T_e", -10, true},    // Température extérieure normale
-    {"T_e", -100, false},  // Trop basse
-    {"T_e", 60, false},    // Trop élevée
-    {"t_immobile", 5000, true},  // Temps d'immobilité normal
-    {"t_immobile", 11000, false}, // Trop élevé
-    {"t_immobile", -1, false},   // Valeur négative
-    {"Inconnu", 50, false}      // Capteur inexistant
-  };
+//   /* Test pour le dictionnaire de donnees */
+//   TestCase_Dic test_cases_dic[] = {
+//     {"FC", 60, true},      // Fréquence cardiaque normale
+//     {"FC", 250, false},    // Trop élevé
+//     {"FC", 20, false},     // Trop bas
+//     {"T_c", 37, true},     // Température corporelle normale
+//     {"T_c", 50, false},    // Trop élevée
+//     {"T_c", 10, false},    // Trop basse
+//     {"T_e", -10, true},    // Température extérieure normale
+//     {"T_e", -100, false},  // Trop basse
+//     {"T_e", 60, false},    // Trop élevée
+//     {"t_immobile", 5000, true},  // Temps d'immobilité normal
+//     {"t_immobile", 11000, false}, // Trop élevé
+//     {"t_immobile", -1, false},   // Valeur négative
+//     {"Inconnu", 50, false}      // Capteur inexistant
+//   };
 
-  total_cases = sizeof(test_cases_dic) / sizeof(TestCase_Dic); 
-  correct = 0;
+//   total_cases = sizeof(test_cases_dic) / sizeof(TestCase_Dic); 
+//   correct = 0;
 
-  Serial.println("Tests unitaires pour le dic de donnees en cours ...");
-  for(int i = 0; i < total_cases; i++){
-    bool res = check_val_dic(test_cases_dic[i].name, test_cases_dic[i].valeur);
-    if(res == test_cases_dic[i].attendu){
-      Serial.print(" ✅ OK ");
-      correct++;
-    }
-    else Serial.print(" ❌ Échec");
-    Serial.print(i + 1);
-    Serial.print(": ");
-    Serial.print(test_cases_dic[i].name);
-    Serial.print(" (");
-    Serial.print(test_cases_dic[i].valeur);
-    Serial.print(") -> ");
-    Serial.println(res ? "Valide" : "Invalide");
-  }
+//   Serial.println("Tests unitaires pour le dic de donnees en cours ...");
+//   for(int i = 0; i < total_cases; i++){
+//     bool res = check_val_dic(test_cases_dic[i].name, test_cases_dic[i].valeur);
+//     if(res == test_cases_dic[i].attendu){
+//       Serial.print(" ✅ OK ");
+//       correct++;
+//     }
+//     else Serial.print(" ❌ Échec");
+//     Serial.print(i + 1);
+//     Serial.print(": ");
+//     Serial.print(test_cases_dic[i].name);
+//     Serial.print(" (");
+//     Serial.print(test_cases_dic[i].valeur);
+//     Serial.print(") -> ");
+//     Serial.println(res ? "Valide" : "Invalide");
+//   }
 
-  Serial.print("\nRésultat des tests : ");
-  Serial.print(correct);
-  Serial.print("/");
-  Serial.print(total_cases);
-  Serial.println(" réussis.");
-  Serial.println("Fin des tests unitaires pour le dic de donnees.");
+//   Serial.print("\nRésultat des tests : ");
+//   Serial.print(correct);
+//   Serial.print("/");
+//   Serial.print(total_cases);
+//   Serial.println(" réussis.");
+//   Serial.println("Fin des tests unitaires pour le dic de donnees.");
 
 
-}
+// }
 
 void send_firebase(const float& temp_ext, const float& int_temp, const float& hum, const int& mov, const char* gps_date, const char* gps_time, const float& speed, const float& alt, const float& longi, const float& lat){
   //firebase start
@@ -668,6 +567,111 @@ void send_firebase(const float& temp_ext, const float& int_temp, const float& hu
     Serial.printf("Set json... %s\n", Firebase.RTDB.setJSON(&fbdo, parentPath.c_str(), &json) ? "ok" : fbdo.errorReason().c_str());
   }
   //firebase end
+
+}
+
+void setup() {
+  // put your setup code here, to run once:
+
+  pinMode(LED_PIN, OUTPUT);
+  pinMode(BUZZER_PIN, OUTPUT);
+  pinMode(BUTTON_PIN, INPUT);
+  
+  Serial.begin(115200);
+  Serial.println(F("Start"));
+  dht.begin();
+
+  //internal temperature start
+  if (!tempsensor.begin(0x18)) {
+    Serial.println("Couldn't find MCP9808! Check your connections and verify the address is correct.");
+    while (1);
+  }
+  Serial.println("Found MCP9808!");
+  tempsensor.setResolution(3);
+  //internal temperature end
+
+  //accelerometer start
+  if (!mpu.begin()) {
+    Serial.println("Failed to find MPU6050 chip");
+    while (1) {
+      delay(10);
+    }
+  }
+  Serial.println("MPU6050 Found!");
+  mpu.setHighPassFilter(MPU6050_HIGHPASS_0_63_HZ);
+  mpu.setMotionDetectionThreshold(1);
+  mpu.setMotionDetectionDuration(20);
+  mpu.setInterruptPinLatch(true);	// Keep it latched.  Will turn off when reinitialized.
+  mpu.setInterruptPinPolarity(true);
+  mpu.setMotionInterrupt(true);
+  //accelerometer end
+
+  //GPS start
+  GPSSerial.begin(9600, SERIAL_8N1, GPS_RX, GPS_TX);  // Start GPS communication
+  // 9600 NMEA is the default baud rate for Adafruit MTK GPS's- some use 4800
+  GPS.begin(9600 );
+  // uncomment this line to turn on RMC (recommended minimum) and GGA (fix data) including altitude
+  GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCGGA);
+  // uncomment this line to turn on only the "minimum recommended" data
+  //GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCONLY);
+  // For parsing data, we don't suggest using anything but either RMC only or RMC+GGA since
+  // the parser doesn't care about other sentences at this time
+  // Set the update rate
+  GPS.sendCommand(PMTK_SET_NMEA_UPDATE_1HZ); // 1 Hz update rate
+  // For the parsing code to work nicely and have time to sort thru the data, and
+  // print it out we don't suggest using anything higher than 1 Hz
+
+  // Request updates on antenna status, comment out to keep quiet
+  GPS.sendCommand(PGCMD_ANTENNA);
+
+  delay(1000);
+
+  // Ask for firmware version
+  GPSSerial.println(PMTK_Q_RELEASE);
+  //GPS end
+
+  //Firebase start
+  initWiFi();
+  timeClient.begin();
+
+  // Assign the api key (required)
+  config.api_key = API_KEY;
+
+  // Assign the user sign in credentials
+  auth.user.email = USER_EMAIL;
+  auth.user.password = USER_PASSWORD;
+
+  // Assign the RTDB URL (required)
+  config.database_url = DATABASE_URL;
+
+  Firebase.reconnectWiFi(true);
+  fbdo.setResponseSize(4096);
+
+  // Assign the callback function for the long running token generation task */
+  config.token_status_callback = tokenStatusCallback; //see addons/TokenHelper.h
+
+  // Assign the maximum retry of token generation
+  config.max_token_generation_retry = 5;
+
+  // Initialize the library with the Firebase authen and config
+  Firebase.begin(&config, &auth);
+
+  // Getting the user UID might take a few seconds
+  Serial.println("Getting User UID");
+  while ((auth.token.uid) == "") {
+    Serial.print('.');
+    delay(1000);
+  }
+  // Print user UID
+  uid = auth.token.uid.c_str();
+  Serial.print("User UID: ");
+  Serial.println(uid);
+
+  // Update database path
+  databasePath = "/UsersData/" + uid + "/readings";
+  //Firebase end
+
+  //test_cases();
 
 }
 
@@ -702,8 +706,8 @@ void loop() {
                 my_gps_struct->date, my_gps_struct->time, my_gps_struct->speed_kmh, my_gps_struct->altitude, my_gps_struct->longitude, my_gps_struct->latitude);
   
   /* Calcul du score de gravite avec les valeurs mesurees */
-  float SG = calcul_score_gravite(my_intern_temp, my_FC, mov, temps_immobile, my_extern_temp_struct->t);
-  const char* alpi_state = evaluer_niveau_gravite(SG);
+  float SG = calcul_score_gravite(my_intern_temp, 3, mov, temps_immobile, my_extern_temp_struct->t);
+  char* alpi_state = evaluer_niveau_gravite(SG);
 
   
 
@@ -715,6 +719,40 @@ void loop() {
   // digitalWrite(BUZZER_PIN, LOW);
 
   /* Implementation de l algortithme principal */
+
+  if (!strcmp(alpi_state, "Pre-alerte : Risque modere")) {
+    digitalWrite(LED_PIN, HIGH); // Allumer la LED rouge
+    unsigned long start_time = millis();
+    uint8_t pre_alerte = 1; 
+    while (millis() - start_time < 30000 && pre_alerte){
+      if(digitalRead(BUTTON_PIN) == HIGH){ // doit être à LOW ou HIGH ?
+        digitalWrite(LED_PIN, LOW);
+        pre_alerte = 0;
+      }
+    }
+    alpi_state = "Alerte serieuse : Confirmation requise"; // Le bouton n'a pas été pressé, alors on passe à une alerte sérieuse
+  }
+
+  if (!strcmp(alpi_state,"Alerte serieuse : Confirmation requise")) {
+    digitalWrite(LED_PIN, HIGH);
+    digitalWrite(BUZZER_PIN, HIGH); // Alarme sonore
+    unsigned long start_time = millis();
+    uint8_t alerte_serieuse = 1;
+    while(millis() - start_time < 15000 && alerte_serieuse){
+      if(digitalRead(BUTTON_PIN) == HIGH) {
+        digitalWrite(LED_PIN, LOW);
+        digitalWrite(BUZZER_PIN, LOW);
+        alerte_serieuse = 0;
+      }
+    }
+    alpi_state = "Alerte critique";
+  }
+
+  if (!strcmp(alpi_state, "Alerte critique")) {
+    digitalWrite(LED_PIN, HIGH);
+    digitalWrite(BUZZER_PIN, HIGH);
+
+  }
 
   
   //Serial.println();
