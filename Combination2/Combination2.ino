@@ -1,4 +1,12 @@
 
+// Frequence cardiaque start
+#include "MAX30105.h"
+#include "heartRate.h"
+// Create an instance of the MAX30105 class to interact with the sensor
+MAX30105 particleSensor;
+// end Frequence cardiaque
+
+
 //External Temperature def start
 #include "DHT.h" //Install DHT sensor library by Adafruit
 #define DHTPIN 4
@@ -88,6 +96,7 @@ String databasePath;
 String extTempPath = "/ExternalTemperature";
 String intTempPath = "/InternalTemperature";
 String humPath = "/humidity";
+String bpmPath = "/BPM";
 String movPath = "/movement"; //bool
 String timePath = "/timestamp";
 String GPSdate = "/GPSdate";
@@ -96,6 +105,9 @@ String speedPath = "/speed";
 String altPath = "/altitude";
 String longDegPath = "/longitudeDegrees";
 String latDegPath = "/latitudeDegrees";
+String SG_Path = "/ScoreDeGravite";
+String AlpiStatePath = "/EtatDeLalpiniste";
+
 
 // Parent Node (to be updated in every loop)
 String parentPath;
@@ -164,7 +176,7 @@ struct extern_temp_struct {
   float t;
 };
 
-const struct extern_temp_struct* extern_temp(){
+struct extern_temp_struct* extern_temp(){
   //External temp start
   static struct extern_temp_struct my_extern_temp; // Utilsation de memoire statique 
   my_extern_temp.h = dht.readHumidity();
@@ -184,7 +196,7 @@ const struct extern_temp_struct* extern_temp(){
 
 }
 
-const float intern_temp(){
+float intern_temp(){
   //Internal temperature start
   tempsensor.wake();
   //Serial.print("Resolution in mode: ");
@@ -347,6 +359,54 @@ struct GPS_struct* GPS_func(){
   }
   return &my_gps;
   //GPS end
+}
+
+/* Fonction pour le capteur de fréquence cardiaque */
+int BPM_func(){
+  // Define the size of the rates array for averaging BPM; can be adjusted for smoother results
+  const byte RATE_SIZE = 20; // Increase this for more averaging. 4 is a good starting point.
+  byte rates[RATE_SIZE]; // Array to store heart rate readings for averaging
+  byte rateSpot = 0; // Index for inserting the next heart rate reading into the array
+  long lastBeat = 0; // Timestamp of the last detected beat, used to calculate BPM
+ 
+  float beatsPerMinute; // Calculated heart rate in beats per minute
+  int beatAvg; // Average heart rate after processing multiple readings
+  long irValue = particleSensor.getIR(); // Read the infrared value from the sensor
+ 
+  if (checkForBeat(irValue) == true) { // Check if a heart beat is detected
+    long delta = millis() - lastBeat; // Calculate the time between the current and last beat
+    lastBeat = millis(); // Update lastBeat to the current time
+ 
+    beatsPerMinute = 60 / (delta / 1000.0); // Calculate BPM
+ 
+    // Ensure BPM is within a reasonable range before updating the rates array
+    if (beatsPerMinute < 255 && beatsPerMinute > 20) {
+      rates[rateSpot++] = (byte)beatsPerMinute; // Store this reading in the rates array
+      rateSpot %= RATE_SIZE; // Wrap the rateSpot index to keep it within the bounds of the rates array
+ 
+      // Compute the average of stored heart rates to smooth out the BPM
+      beatAvg = 0;
+      for (byte x = 0 ; x < RATE_SIZE ; x++)
+        beatAvg += rates[x];
+      beatAvg /= RATE_SIZE;
+    }
+  }
+ 
+  // Output the current IR value, BPM, and averaged BPM to the serial monitor
+  Serial.print("IR=");
+  Serial.print(irValue);
+  Serial.print(", BPM=");
+  Serial.print(beatsPerMinute);
+  Serial.print(", Avg BPM=");
+  Serial.print(beatAvg);
+ 
+  // Check if the sensor reading suggests that no finger is placed on the sensor
+  if (irValue < 50000)
+    Serial.print(" No finger?");
+ 
+  Serial.println();
+
+  return beatAvg;
 }
 
 //Calcule le risque lie a la frequence cardiaque et la temperature corpporelle
@@ -540,7 +600,8 @@ char* evaluer_niveau_gravite (const float& SG){
 
 // }
 
-void send_firebase(const float& temp_ext, const float& int_temp, const float& hum, const int& mov, const char* gps_date, const char* gps_time, const float& speed, const float& alt, const float& longi, const float& lat){
+void send_firebase(const float& temp_ext, const float& int_temp, const float& hum, const int& bpm, const int& mov, const char* gps_date, 
+                  const char* gps_time, const float& speed, const float& alt, const float& longi, const float& lat, const float& sg, const char* alpi_state){
   //firebase start
   // Send new readings to database
   if (Firebase.ready() ){ //&& (millis() - sendDataPrevMillis > timerDelay || sendDataPrevMillis == 0)
@@ -556,6 +617,7 @@ void send_firebase(const float& temp_ext, const float& int_temp, const float& hu
     json.set(extTempPath.c_str(), String(temp_ext));
     json.set(intTempPath.c_str(), String(int_temp));
     json.set(humPath.c_str(), String(hum));
+    json.set(bpmPath.c_str(), String(bpm));
     json.set(movPath.c_str(), String(mov));
     json.set(timePath, String(timestamp));
     json.set(GPSdate.c_str(), String(gps_date));
@@ -564,6 +626,8 @@ void send_firebase(const float& temp_ext, const float& int_temp, const float& hu
     json.set(altPath.c_str(), String(alt));
     json.set(longDegPath.c_str(), String(longi));
     json.set(latDegPath.c_str(), String(lat));
+    json.set(SG_Path.c_str(), String(sg));
+    json.set(AlpiStatePath.c_str(), String(alpi_state));
     Serial.printf("Set json... %s\n", Firebase.RTDB.setJSON(&fbdo, parentPath.c_str(), &json) ? "ok" : fbdo.errorReason().c_str());
   }
   //firebase end
@@ -580,6 +644,18 @@ void setup() {
   Serial.begin(115200);
   Serial.println(F("Start"));
   dht.begin();
+
+  // Attempt to initialize the MAX30105 sensor. Check for a successful connection and report.
+  if (!particleSensor.begin(Wire, I2C_SPEED_FAST)) { // Start communication using fast I2C speed
+    Serial.println("MAX30102 was not found. Please check wiring/power. ");
+    //while (1); // Infinite loop to halt further execution if sensor is not found
+  }
+  Serial.println("Place your index finger on the sensor with steady pressure.");
+ 
+  particleSensor.setup(); // Configure sensor with default settings for heart rate monitoring
+  particleSensor.setPulseAmplitudeRed(0x0A); // Set the red LED pulse amplitude (intensity) to a low value as an indicator
+  particleSensor.setPulseAmplitudeGreen(0); // Turn off the green LED as it's not used here
+
 
   //internal temperature start
   if (!tempsensor.begin(0x18)) {
@@ -680,7 +756,7 @@ void loop() {
   delay (10000);// delai arbitraire 
 
   /* Lecture de la temperature externe */ 
-  const struct extern_temp_struct* my_extern_temp_struct = extern_temp();
+  struct extern_temp_struct* my_extern_temp_struct = extern_temp();
   Serial.println("Test de la memoire statique ...");
   Serial.print(F("Humidity: "));
   Serial.print(my_extern_temp_struct->h);
@@ -689,7 +765,7 @@ void loop() {
   Serial.println(F("°C "));
 
   /* Lecture de la temperature interne */
-  const float my_intern_temp = intern_temp();
+  float my_intern_temp = intern_temp();
   Serial.print("Depuis le main, Internal Temp: "); 
   Serial.print(my_intern_temp, 4); Serial.print("*C\n"); 
 
@@ -700,14 +776,19 @@ void loop() {
   Serial.print("Temps immobile depuis le main : ");
   Serial.println(temps_immobile);
 
-  /* Envoyer les donnees a firebase */
-  const struct GPS_struct* my_gps_struct = GPS_func();
-  send_firebase(my_extern_temp_struct->t, my_intern_temp, my_extern_temp_struct->h, mov, 
-                my_gps_struct->date, my_gps_struct->time, my_gps_struct->speed_kmh, my_gps_struct->altitude, my_gps_struct->longitude, my_gps_struct->latitude);
+  /* Récupération des données GPS */
+  struct GPS_struct* my_gps_struct = GPS_func();
+
+  /* Récupération du BPM */
+  int bpm = BPM_func();
   
   /* Calcul du score de gravite avec les valeurs mesurees */
-  float SG = calcul_score_gravite(my_intern_temp, 3, mov, temps_immobile, my_extern_temp_struct->t);
+  float SG = calcul_score_gravite(my_intern_temp, bpm, mov, temps_immobile, my_extern_temp_struct->t);
   char* alpi_state = evaluer_niveau_gravite(SG);
+
+  /* Envoyer les donnees a firebase */
+  send_firebase(my_extern_temp_struct->t, my_intern_temp, my_extern_temp_struct->h, bpm, mov, 
+                my_gps_struct->date, my_gps_struct->time, my_gps_struct->speed_kmh, my_gps_struct->altitude, my_gps_struct->longitude, my_gps_struct->latitude, SG, alpi_state);
 
   
 
@@ -724,13 +805,23 @@ void loop() {
     digitalWrite(LED_PIN, HIGH); // Allumer la LED rouge
     unsigned long start_time = millis();
     uint8_t pre_alerte = 1; 
-    while (millis() - start_time < 30000 && pre_alerte){
+    while (millis() - start_time < 30000 && pre_alerte){ // attendre 30s pour que l'alpiniste appuie sur le bouton 
       if(digitalRead(BUTTON_PIN) == HIGH){ // doit être à LOW ou HIGH ?
         digitalWrite(LED_PIN, LOW);
         pre_alerte = 0;
       }
     }
-    alpi_state = "Alerte serieuse : Confirmation requise"; // Le bouton n'a pas été pressé, alors on passe à une alerte sérieuse
+    if(pre_alerte) alpi_state = "Alerte serieuse : Confirmation requise"; // Le bouton n'a pas été pressé, alors on passe à une alerte sérieuse
+
+    /* Actualisation des données sur firebase */
+    my_extern_temp_struct = extern_temp();
+    my_intern_temp = intern_temp();
+    bpm = BPM_func();
+    mov = accelerometer();
+    my_gps_struct = GPS_func();
+    send_firebase(my_extern_temp_struct->t, my_intern_temp, my_extern_temp_struct->h, bpm, mov, 
+                  my_gps_struct->date, my_gps_struct->time, my_gps_struct->speed_kmh, my_gps_struct->altitude, my_gps_struct->longitude, my_gps_struct->latitude, SG, alpi_state);
+
   }
 
   if (!strcmp(alpi_state,"Alerte serieuse : Confirmation requise")) {
@@ -745,14 +836,41 @@ void loop() {
         alerte_serieuse = 0;
       }
     }
-    alpi_state = "Alerte critique";
+    if(alerte_serieuse) alpi_state = "Alerte critique";
+
+    /* Actualisation des données sur firebase */
+    my_extern_temp_struct = extern_temp();
+    my_intern_temp = intern_temp();
+    bpm = BPM_func();
+    mov = accelerometer();
+    my_gps_struct = GPS_func();
+    send_firebase(my_extern_temp_struct->t, my_intern_temp, my_extern_temp_struct->h, bpm, mov, 
+                  my_gps_struct->date, my_gps_struct->time, my_gps_struct->speed_kmh, my_gps_struct->altitude, my_gps_struct->longitude, my_gps_struct->latitude, SG, alpi_state);
+
   }
 
   if (!strcmp(alpi_state, "Alerte critique")) {
     digitalWrite(LED_PIN, HIGH);
     digitalWrite(BUZZER_PIN, HIGH);
 
+    /* Actualisation des données sur firebase */
+    my_extern_temp_struct = extern_temp();
+    my_intern_temp = intern_temp();
+    bpm = BPM_func();
+    mov = accelerometer();
+    my_gps_struct = GPS_func();
+    send_firebase(my_extern_temp_struct->t, my_intern_temp, my_extern_temp_struct->h, bpm, mov, 
+                  my_gps_struct->date, my_gps_struct->time, my_gps_struct->speed_kmh, my_gps_struct->altitude, my_gps_struct->longitude, my_gps_struct->latitude, SG, alpi_state);
+
+
   }
+
+  if (!strcmp(alpi_state, "Situation normale")) {
+    digitalWrite(LED_PIN, LOW);
+    digitalWrite(BUZZER_PIN, LOW);
+
+  }
+
 
   
   //Serial.println();
