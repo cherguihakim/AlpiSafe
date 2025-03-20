@@ -700,6 +700,12 @@ void loop() {
   const struct GPS_struct* my_gps_struct = GPS_func();
   send_firebase(my_extern_temp_struct->t, my_intern_temp, my_extern_temp_struct->h, mov, 
                 my_gps_struct->date, my_gps_struct->time, my_gps_struct->speed_kmh, my_gps_struct->altitude, my_gps_struct->longitude, my_gps_struct->latitude);
+  
+  /* Calcul du score de gravite avec les valeurs mesurees */
+  float SG = calcul_score_gravite(my_intern_temp, my_FC, mov, temps_immobile, my_extern_temp_struct->t);
+  const char* alpi_state = evaluer_niveau_gravite(SG);
+
+  
 
   // test_cases();
   // digitalWrite(LED_PIN, HIGH);
@@ -707,6 +713,8 @@ void loop() {
   // delay(5000);
   // digitalWrite(LED_PIN, LOW);
   // digitalWrite(BUZZER_PIN, LOW);
+
+  /* Implementation de l algortithme principal */
 
   
   //Serial.println();
