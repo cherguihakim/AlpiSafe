@@ -497,9 +497,9 @@ float score_interaction_medicale (const float& T_c, const int& FC, const float& 
 //Calcule le score de gravite general (SG)
 float calcul_score_gravite (const float& T_c, const int& FC, const int& mov, const float& t_immobile, const float& T_e){
   float w1, w2, w3, w4; //Ponderations pour chaque facteur de risque
-  w1 = 0.3; //Poids pour la frequence cardiaque
-  w2 = 0.3; //Poids pour l immobilite
-  w3 = 0.2; //Poids pour la temp corporelle et exterieure
+  w1 = 0.2; //Poids pour la frequence cardiaque
+  w2 = 0.2; //Poids pour l immobilite
+  w3 = 0.4; //Poids pour la temp corporelle et exterieure
   w4 = 0.2; //Poids pour l interaction medicale
   
   //Calcul des scores individuels
