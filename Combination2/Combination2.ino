@@ -391,6 +391,8 @@ void BPM_func(void* pvParameters){
         beatAvg = 0;
         for (byte x = 0 ; x < RATE_SIZE ; x++)
           beatAvg += rates[x];
+          Serial.print("rates[x] est : "); 
+          Serial.println(rates[x]);
         beatAvg /= RATE_SIZE;
       }
     }
@@ -408,7 +410,7 @@ void BPM_func(void* pvParameters){
       Serial.print(" No finger?");
  
     Serial.println();
-    delay(1000);
+    // delay(1000);
   }
 }
 
