@@ -363,20 +363,17 @@ struct GPS_struct* GPS_func(){
 }
 
 // Define the size of the rates array for averaging BPM; can be adjusted for smoother results
-  const byte RATE_SIZE = 4; // Increase this for more averaging. 4 is a good starting point.
+  const byte RATE_SIZE = 20; // Increase this for more averaging. 4 is a good starting point.
   byte rates[RATE_SIZE]; // Array to store heart rate readings for averaging
   byte rateSpot = 0; // Index for inserting the next heart rate reading into the array
   long lastBeat = 0; // Timestamp of the last detected beat, used to calculate BPM
 
-/* Fonction pour le capteur de fréquence cardiaque */
-int BPM_func(){
-  const byte RATE_SIZE = 4; // Increase this for more averaging. 4 is a good starting point.
-  byte rates[RATE_SIZE]; // Array to store heart rate readings for averaging
-  byte rateSpot = 0; // Index for inserting the next heart rate reading into the array
-  long lastBeat = 0; // Timestamp of the last detected beat, used to calculate BPM
- 
   float beatsPerMinute; // Calculated heart rate in beats per minute
   int beatAvg; // Average heart rate after processing multiple readings
+
+/* Fonction pour le capteur de fréquence cardiaque */
+int BPM_func(){
+ 
   long irValue = particleSensor.getIR(); // Read the infrared value from the sensor
  
   if (checkForBeat(irValue) == true) { // Check if a heart beat is detected
@@ -651,18 +648,6 @@ void setup() {
   Serial.println(F("Start"));
   dht.begin();
 
-  // Attempt to initialize the MAX30105 sensor. Check for a successful connection and report.
-  if (!particleSensor.begin(Wire, I2C_SPEED_FAST)) { // Start communication using fast I2C speed
-    Serial.println("MAX30102 was not found. Please check wiring/power. ");
-    //while (1); // Infinite loop to halt further execution if sensor is not found
-  }
-  Serial.println("Place your index finger on the sensor with steady pressure.");
- 
-  particleSensor.setup(); // Configure sensor with default settings for heart rate monitoring
-  particleSensor.setPulseAmplitudeRed(0x0A); // Set the red LED pulse amplitude (intensity) to a low value as an indicator
-  particleSensor.setPulseAmplitudeGreen(0); // Turn off the green LED as it's not used here
-
-
   //internal temperature start
   if (!tempsensor.begin(0x18)) {
     Serial.println("Couldn't find MCP9808! Check your connections and verify the address is correct.");
@@ -755,6 +740,18 @@ void setup() {
 
   //test_cases();
 
+  //start MAX30102
+    // Attempt to initialize the MAX30105 sensor. Check for a successful connection and report.
+  if (!particleSensor.begin(Wire, I2C_SPEED_FAST)) { // Start communication using fast I2C speed
+    Serial.println("MAX30102 was not found. Please check wiring/power. ");
+    //while (1); // Infinite loop to halt further execution if sensor is not found
+  }
+  Serial.println("Place your index finger on the sensor with steady pressure.");
+ 
+  particleSensor.setup(); // Configure sensor with default settings for heart rate monitoring
+  particleSensor.setPulseAmplitudeRed(0x0A); // Set the red LED pulse amplitude (intensity) to a low value as an indicator
+  particleSensor.setPulseAmplitudeGreen(0); // Turn off the green LED as it's not used here
+  //end MAX30102
 }
 
 void loop() {
