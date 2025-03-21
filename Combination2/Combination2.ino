@@ -408,6 +408,7 @@ void BPM_func(void* pvParameters){
       Serial.print(" No finger?");
  
     Serial.println();
+    delay(1000);
   }
 }
 
@@ -756,7 +757,7 @@ void setup() {
   xTaskCreatePinnedToCore (
     BPM_func,     // Function to implement the task
     "Bpm_function",   // Name of the task
-    1000,      // Stack size in bytes
+    4096,      // Stack size in bytes
     NULL,      // Task input parameter
     0,         // Priority of the task
     NULL,      // Task handle.
