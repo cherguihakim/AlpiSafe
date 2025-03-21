@@ -372,44 +372,43 @@ struct GPS_struct* GPS_func(){
   int beatAvg; // Average heart rate after processing multiple readings
 
 /* Fonction pour le capteur de fréquence cardiaque */
-int BPM_func(){
+void BPM_func(void* pvParameters){
+  while(1){
+    long irValue = particleSensor.getIR(); // Read the infrared value from the sensor
  
-  long irValue = particleSensor.getIR(); // Read the infrared value from the sensor
+    if (checkForBeat(irValue) == true) { // Check if a heart beat is detected
+      long delta = millis() - lastBeat; // Calculate the time between the current and last beat
+      lastBeat = millis(); // Update lastBeat to the current time
  
-  if (checkForBeat(irValue) == true) { // Check if a heart beat is detected
-    long delta = millis() - lastBeat; // Calculate the time between the current and last beat
-    lastBeat = millis(); // Update lastBeat to the current time
+      beatsPerMinute = 60 / (delta / 1000.0); // Calculate BPM
  
-    beatsPerMinute = 60 / (delta / 1000.0); // Calculate BPM
+      // Ensure BPM is within a reasonable range before updating the rates array
+      if (beatsPerMinute < 255 && beatsPerMinute > 20) {
+        rates[rateSpot++] = (byte)beatsPerMinute; // Store this reading in the rates array
+        rateSpot %= RATE_SIZE; // Wrap the rateSpot index to keep it within the bounds of the rates array
  
-    // Ensure BPM is within a reasonable range before updating the rates array
-    if (beatsPerMinute < 255 && beatsPerMinute > 20) {
-      rates[rateSpot++] = (byte)beatsPerMinute; // Store this reading in the rates array
-      rateSpot %= RATE_SIZE; // Wrap the rateSpot index to keep it within the bounds of the rates array
- 
-      // Compute the average of stored heart rates to smooth out the BPM
-      beatAvg = 0;
-      for (byte x = 0 ; x < RATE_SIZE ; x++)
-        beatAvg += rates[x];
-      beatAvg /= RATE_SIZE;
+        // Compute the average of stored heart rates to smooth out the BPM
+        beatAvg = 0;
+        for (byte x = 0 ; x < RATE_SIZE ; x++)
+          beatAvg += rates[x];
+        beatAvg /= RATE_SIZE;
+      }
     }
+ 
+    // Output the current IR value, BPM, and averaged BPM to the serial monitor
+    Serial.print("IR=");
+    Serial.print(irValue);
+    Serial.print(", BPM=");
+    Serial.print(beatsPerMinute);
+    Serial.print(", Avg BPM=");
+    Serial.print(beatAvg);
+ 
+    // Check if the sensor reading suggests that no finger is placed on the sensor
+    if (irValue < 50000)
+      Serial.print(" No finger?");
+ 
+    Serial.println();
   }
- 
-  // Output the current IR value, BPM, and averaged BPM to the serial monitor
-  Serial.print("IR=");
-  Serial.print(irValue);
-  Serial.print(", BPM=");
-  Serial.print(beatsPerMinute);
-  Serial.print(", Avg BPM=");
-  Serial.print(beatAvg);
- 
-  // Check if the sensor reading suggests that no finger is placed on the sensor
-  if (irValue < 50000)
-    Serial.print(" No finger?");
- 
-  Serial.println();
-
-  return beatAvg;
 }
 
 //Calcule le risque lie a la frequence cardiaque et la temperature corpporelle
@@ -752,6 +751,17 @@ void setup() {
   particleSensor.setPulseAmplitudeRed(0x0A); // Set the red LED pulse amplitude (intensity) to a low value as an indicator
   particleSensor.setPulseAmplitudeGreen(0); // Turn off the green LED as it's not used here
   //end MAX30102
+
+  // start of Task BPM 
+  xTaskCreatePinnedToCore (
+    BPM_func,     // Function to implement the task
+    "Bpm_function",   // Name of the task
+    1000,      // Stack size in bytes
+    NULL,      // Task input parameter
+    0,         // Priority of the task
+    NULL,      // Task handle.
+    0          // Core where the task should run
+  );
 }
 
 void loop() {
@@ -783,7 +793,7 @@ void loop() {
   struct GPS_struct* my_gps_struct = GPS_func();
 
   /* Récupération du BPM */
-  int bpm = BPM_func();
+  int bpm = beatAvg;
   
   /* Calcul du score de gravite avec les valeurs mesurees */
   float SG = calcul_score_gravite(my_intern_temp, bpm, mov, temps_immobile, my_extern_temp_struct->t);
@@ -819,7 +829,7 @@ void loop() {
     /* Actualisation des données sur firebase */
     my_extern_temp_struct = extern_temp();
     my_intern_temp = intern_temp();
-    bpm = BPM_func();
+    bpm = beatAvg;
     mov = accelerometer();
     my_gps_struct = GPS_func();
     send_firebase(my_extern_temp_struct->t, my_intern_temp, my_extern_temp_struct->h, bpm, mov, 
@@ -844,7 +854,7 @@ void loop() {
     /* Actualisation des données sur firebase */
     my_extern_temp_struct = extern_temp();
     my_intern_temp = intern_temp();
-    bpm = BPM_func();
+    bpm = beatAvg;
     mov = accelerometer();
     my_gps_struct = GPS_func();
     send_firebase(my_extern_temp_struct->t, my_intern_temp, my_extern_temp_struct->h, bpm, mov, 
@@ -859,7 +869,7 @@ void loop() {
     /* Actualisation des données sur firebase */
     my_extern_temp_struct = extern_temp();
     my_intern_temp = intern_temp();
-    bpm = BPM_func();
+    bpm = beatAvg;
     mov = accelerometer();
     my_gps_struct = GPS_func();
     send_firebase(my_extern_temp_struct->t, my_intern_temp, my_extern_temp_struct->h, bpm, mov, 
