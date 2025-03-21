@@ -72,14 +72,14 @@ uint32_t timer = millis();
 #define WIFI_PASSWORD "adam19t!"
 
 // Insert Firebase project API Key
-#define API_KEY "AIzaSyC9IodquzD8AbE-0-MGZDm-osyQjg8pVgs"
+#define API_KEY "AIzaSyDZrqyUCICZ2qmkUsytUcC9AiLGA6EWzbc"
 
 // Insert Authorized Email and Corresponding Password
 #define USER_EMAIL "Alpiniste@gmail.com"
 #define USER_PASSWORD "Qwerty1234567"
 
 // Insert RTDB URLefine the RTDB URL
-#define DATABASE_URL "https://alpisafe-ce734-default-rtdb.firebaseio.com/"
+#define DATABASE_URL "https://alpisafe2-default-rtdb.firebaseio.com/"
 
 
 // Define Firebase objects
