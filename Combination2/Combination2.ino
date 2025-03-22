@@ -391,25 +391,23 @@ void BPM_func(void* pvParameters){
         beatAvg = 0;
         for (byte x = 0 ; x < RATE_SIZE ; x++)
           beatAvg += rates[x];
-          Serial.print("rates[x] est : "); 
-          Serial.println(rates[x]);
         beatAvg /= RATE_SIZE;
       }
     }
  
     // Output the current IR value, BPM, and averaged BPM to the serial monitor
-    Serial.print("IR=");
+    /*Serial.print("IR=");
     Serial.print(irValue);
     Serial.print(", BPM=");
     Serial.print(beatsPerMinute);
     Serial.print(", Avg BPM=");
-    Serial.print(beatAvg);
+    Serial.print(beatAvg);*/
  
     // Check if the sensor reading suggests that no finger is placed on the sensor
     if (irValue < 50000)
-      Serial.print(" No finger?");
+      Serial.println(" No finger?");
  
-    Serial.println();
+    
     // delay(1000);
   }
 }
@@ -616,6 +614,8 @@ void send_firebase(const float& temp_ext, const float& int_temp, const float& hu
     timestamp = getTime();
     Serial.print ("time: ");
     Serial.println (timestamp);
+    Serial.print ("BPM :");
+    Serial.println(bpm);
 
     parentPath= databasePath + "/" + String(timestamp);
 
@@ -644,7 +644,7 @@ void setup() {
 
   pinMode(LED_PIN, OUTPUT);
   pinMode(BUZZER_PIN, OUTPUT);
-  pinMode(BUTTON_PIN, INPUT);
+  pinMode(BUTTON_PIN, INPUT_PULLDOWN);
   
   Serial.begin(115200);
   Serial.println(F("Start"));
@@ -825,6 +825,7 @@ void loop() {
       if(digitalRead(BUTTON_PIN) == HIGH){ // doit être à LOW ou HIGH ?
         digitalWrite(LED_PIN, LOW);
         pre_alerte = 0;
+        delay (5000);// delai arbitraire 
       }
     }
     if(pre_alerte) alpi_state = "Alerte serieuse : Confirmation requise"; // Le bouton n'a pas été pressé, alors on passe à une alerte sérieuse
@@ -850,6 +851,7 @@ void loop() {
         digitalWrite(LED_PIN, LOW);
         digitalWrite(BUZZER_PIN, LOW);
         alerte_serieuse = 0;
+        delay (5000);// delai arbitraire 
       }
     }
     if(alerte_serieuse) alpi_state = "Alerte critique";
@@ -886,8 +888,6 @@ void loop() {
     digitalWrite(BUZZER_PIN, LOW);
 
   }
-
-
   
   //Serial.println();
 }
