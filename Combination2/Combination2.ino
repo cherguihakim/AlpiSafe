@@ -53,7 +53,7 @@ uint32_t timer = millis();
 #define BUZZER_PIN 33
 
 /* BUTTON */
-#define BUTTON_PIN 34
+#define BUTTON_PIN 15
 
 //Firebase start
 #include <Arduino.h>
@@ -363,7 +363,7 @@ struct GPS_struct* GPS_func(){
 }
 
 // Define the size of the rates array for averaging BPM; can be adjusted for smoother results
-  const byte RATE_SIZE = 20; // Increase this for more averaging. 4 is a good starting point.
+  const byte RATE_SIZE = 5; // Increase this for more averaging. 4 is a good starting point.
   byte rates[RATE_SIZE]; // Array to store heart rate readings for averaging
   byte rateSpot = 0; // Index for inserting the next heart rate reading into the array
   long lastBeat = 0; // Timestamp of the last detected beat, used to calculate BPM
