@@ -129,7 +129,7 @@ unsigned long timerDelay = 10000;
 // Initialize WiFi
 void initWiFi() {
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  Serial.print("Connecting to WiFi ..");
+  Serial.print(F("Connecting to WiFi .."));
   while (WiFi.status() != WL_CONNECTED) {
     Serial.print('.');
     delay(1000);
@@ -205,7 +205,7 @@ float intern_temp(){
   // Serial.print("Internal Temp: "); 
   // Serial.print(celsius, 4); Serial.print("*C\n"); 
   delay(500);
-  Serial.println("Shutdown MCP9808.... ");
+  Serial.println(F("Shutdown MCP9808.... "));
   tempsensor.shutdown_wake(1);
   //Serial.println("");
   return celsius;
@@ -225,34 +225,14 @@ int accelerometer(){
     last_mov = millis(); // Mise a jour du dernier mouvement
     sensors_event_t a, g, temp;
     mpu.getEvent(&a, &g, &temp);
-
-    // /* Print out the values */
-    // Serial.print("AccelX:");
-    // Serial.print(a.acceleration.x);
-    // Serial.print(",");
-    // Serial.print("AccelY:");
-    // Serial.print(a.acceleration.y);
-    // Serial.print(",");
-    // Serial.print("AccelZ:");
-    // Serial.print(a.acceleration.z);
-    // Serial.print(", ");
-    // Serial.print("GyroX:");
-    // Serial.print(g.gyro.x);
-    // Serial.print(",");
-    // Serial.print("GyroY:");
-    // Serial.print(g.gyro.y);
-    // Serial.print(",");
-    // Serial.print("GyroZ:");
-    // Serial.print(g.gyro.z);
-    // Serial.println("");
   }
   if(movement){
-    Serial.println("Movement Detected");
+    Serial.println(F("Movement Detected"));
   }else{
     temps_immobile = (millis() - last_mov) / 1000;
-    Serial.print("Stationary, Temps immobile : ");
+    Serial.print(F("Stationary, Temps immobile : "));
     Serial.print(temps_immobile);
-    Serial.println(" sec");
+    Serial.println(F(" sec"));
   }
   return movement;
   //Accelerometer end
@@ -328,27 +308,27 @@ struct GPS_struct* GPS_func(){
     my_gps.time = timeStr;
 
     // Affichage
-    Serial.print("Date GPS: ");
+    Serial.print(F("Date GPS: "));
     Serial.println(dateStr);
-    Serial.print("Heure GPS: ");
+    Serial.print(F("Heure GPS: "));
     Serial.println(timeStr);
 
-    Serial.print("Fix: "); Serial.print((int)GPS.fix);
+    Serial.print(F("Fix: ")); Serial.print((int)GPS.fix);
     if (GPS.fix) {
-      Serial.print("Location: ");
+      Serial.print(F("Location: "));
       Serial.print(GPS.latitude, 4); Serial.print(GPS.lat);
       Serial.print(", ");
       Serial.print(GPS.longitude, 4); Serial.println(GPS.lon);
-      Serial.print("Location in Degrees: ");
+      Serial.print(F("Location in Degrees: "));
       Serial.print(GPS.latitudeDegrees, 8); 
-      Serial.print(", ");
+      Serial.print(F(", "));
       Serial.println(GPS.longitudeDegrees, 8);
-      Serial.print("Speed (knots): "); Serial.println(GPS.speed);
-      Serial.print("Speed (km/h): "); Serial.println(1.852*GPS.speed);
-      Serial.print("Angle: "); Serial.println(GPS.angle);
-      Serial.print("Altitude: "); Serial.println(GPS.altitude);
-      Serial.print("Satellites: "); Serial.println((int)GPS.satellites);
-      Serial.print("Antenna status: "); Serial.println((int)GPS.antenna);
+      Serial.print(F("Speed (knots): ")); Serial.println(GPS.speed);
+      Serial.print(F("Speed (km/h): ")); Serial.println(1.852*GPS.speed);
+      Serial.print(F("Angle: ")); Serial.println(GPS.angle);
+      Serial.print(F("Altitude: ")); Serial.println(GPS.altitude);
+      Serial.print(F("Satellites: ")); Serial.println((int)GPS.satellites);
+      Serial.print(F("Antenna status: ")); Serial.println((int)GPS.antenna);
       latDeg=GPS.latitudeDegrees; longDeg=GPS.longitudeDegrees; speedKMH=1.852*GPS.speed; Altitude=GPS.altitude;
 
       my_gps.speed_kmh = 1.852*GPS.speed;
@@ -405,7 +385,7 @@ void BPM_func(void* pvParameters){
  
     // Check if the sensor reading suggests that no finger is placed on the sensor
     if (irValue < 50000)
-      Serial.println(" No finger?");
+      Serial.println(F(" No finger?"));
  
     
     // delay(1000);
@@ -612,9 +592,9 @@ void send_firebase(const float& temp_ext, const float& int_temp, const float& hu
 
     //Get current timestamp
     timestamp = getTime();
-    Serial.print ("time: ");
+    Serial.print (F("time: "));
     Serial.println (timestamp);
-    Serial.print ("BPM :");
+    Serial.print (F("BPM :"));
     Serial.println(bpm);
 
     parentPath= databasePath + "/" + String(timestamp);
@@ -652,21 +632,21 @@ void setup() {
 
   //internal temperature start
   if (!tempsensor.begin(0x18)) {
-    Serial.println("Couldn't find MCP9808! Check your connections and verify the address is correct.");
+    Serial.println(F("Couldn't find MCP9808! Check your connections and verify the address is correct."));
     while (1);
   }
-  Serial.println("Found MCP9808!");
+  Serial.println(F("Found MCP9808!"));
   tempsensor.setResolution(3);
   //internal temperature end
 
   //accelerometer start
   if (!mpu.begin()) {
-    Serial.println("Failed to find MPU6050 chip");
+    Serial.println(F("Failed to find MPU6050 chip"));
     while (1) {
       delay(10);
     }
   }
-  Serial.println("MPU6050 Found!");
+  Serial.println(F("MPU6050 Found!"));
   mpu.setHighPassFilter(MPU6050_HIGHPASS_0_63_HZ);
   mpu.setMotionDetectionThreshold(1);
   mpu.setMotionDetectionDuration(20);
@@ -726,14 +706,14 @@ void setup() {
   Firebase.begin(&config, &auth);
 
   // Getting the user UID might take a few seconds
-  Serial.println("Getting User UID");
+  Serial.println(F("Getting User UID"));
   while ((auth.token.uid) == "") {
     Serial.print('.');
     delay(1000);
   }
   // Print user UID
   uid = auth.token.uid.c_str();
-  Serial.print("User UID: ");
+  Serial.print(F("User UID: "));
   Serial.println(uid);
 
   // Update database path
@@ -745,10 +725,10 @@ void setup() {
   //start MAX30102
     // Attempt to initialize the MAX30105 sensor. Check for a successful connection and report.
   if (!particleSensor.begin(Wire, I2C_SPEED_FAST)) { // Start communication using fast I2C speed
-    Serial.println("MAX30102 was not found. Please check wiring/power. ");
+    Serial.println(F("MAX30102 was not found. Please check wiring/power. "));
     //while (1); // Infinite loop to halt further execution if sensor is not found
   }
-  Serial.println("Place your index finger on the sensor with steady pressure.");
+  Serial.println(F("Place your index finger on the sensor with steady pressure."));
  
   particleSensor.setup(); // Configure sensor with default settings for heart rate monitoring
   particleSensor.setPulseAmplitudeRed(0x0A); // Set the red LED pulse amplitude (intensity) to a low value as an indicator
@@ -773,7 +753,7 @@ void loop() {
 
   /* Lecture de la temperature externe */ 
   struct extern_temp_struct* my_extern_temp_struct = extern_temp();
-  Serial.println("Test de la memoire statique ...");
+  Serial.println(F("Test de la memoire statique ..."));
   Serial.print(F("Humidity: "));
   Serial.print(my_extern_temp_struct->h);
   Serial.print(F("%  External Temperature: "));
@@ -782,14 +762,14 @@ void loop() {
 
   /* Lecture de la temperature interne */
   float my_intern_temp = intern_temp();
-  Serial.print("Depuis le main, Internal Temp: "); 
-  Serial.print(my_intern_temp, 4); Serial.print("*C\n"); 
+  Serial.print(F("Depuis le main, Internal Temp: ")); 
+  Serial.print(my_intern_temp, 4); Serial.print(F("*C\n")); 
 
   /* Recuperation du mouvement et du temps d immobilite */
   int mov = accelerometer();
-  Serial.print("Mouvement 0 ou 1 ? => ");
+  Serial.print(F("Mouvement 0 ou 1 ? => "));
   Serial.println(mov);
-  Serial.print("Temps immobile depuis le main : ");
+  Serial.print(F("Temps immobile depuis le main : "));
   Serial.println(temps_immobile);
 
   /* Récupération des données GPS */
@@ -886,7 +866,6 @@ void loop() {
   if (!strcmp(alpi_state, "Situation normale")) {
     digitalWrite(LED_PIN, LOW);
     digitalWrite(BUZZER_PIN, LOW);
-
   }
   
   //Serial.println();
