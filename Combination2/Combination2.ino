@@ -105,6 +105,8 @@ String speedPath = "/speed";
 String altPath = "/altitude";
 String longDegPath = "/longitudeDegrees";
 String latDegPath = "/latitudeDegrees";
+String timeImmobPath = "/tempsDimmobilite";
+String buttonStatePath = "/ButtonState";
 String SG_Path = "/ScoreDeGravite";
 String AlpiStatePath = "/EtatDeLalpiniste";
 
@@ -229,10 +231,10 @@ int accelerometer(){
   if(movement){
     Serial.println(F("Movement Detected"));
   }else{
-    temps_immobile = (millis() - last_mov) / 1000;
+    temps_immobile = (millis() - last_mov) / 60000;
     Serial.print(F("Stationary, Temps immobile : "));
     Serial.print(temps_immobile);
-    Serial.println(F(" sec"));
+    Serial.println(F(" min"));
   }
   return movement;
   //Accelerometer end
@@ -584,7 +586,8 @@ char* evaluer_niveau_gravite (const float& SG){
 // }
 
 void send_firebase(const float& temp_ext, const float& int_temp, const float& hum, const int& bpm, const int& mov, const char* gps_date, 
-                  const char* gps_time, const float& speed, const float& alt, const float& longi, const float& lat, const float& sg, const char* alpi_state){
+                  const char* gps_time, const float& speed, const float& alt, const float& longi, const float& lat, const float& sg, const char* alpi_state, const unsigned long& time_immobile,
+                  const int& button_state){
   //firebase start
   // Send new readings to database
   if (Firebase.ready() ){ //&& (millis() - sendDataPrevMillis > timerDelay || sendDataPrevMillis == 0)
@@ -613,6 +616,8 @@ void send_firebase(const float& temp_ext, const float& int_temp, const float& hu
     json.set(latDegPath.c_str(), String(lat));
     json.set(SG_Path.c_str(), String(sg));
     json.set(AlpiStatePath.c_str(), String(alpi_state));
+    json.set(timeImmobPath.c_str(), String(time_immobile));
+    json.set(buttonStatePath.c_str(), String(button_state));
     Serial.printf("Set json... %s\n", Firebase.RTDB.setJSON(&fbdo, parentPath.c_str(), &json) ? "ok" : fbdo.errorReason().c_str());
   }
   //firebase end
@@ -751,6 +756,7 @@ void loop() {
   // put your main code here, to run repeatedly:
   delay (10000);// delai arbitraire 
 
+  int button = 0;
   /* Lecture de la temperature externe */ 
   struct extern_temp_struct* my_extern_temp_struct = extern_temp();
   Serial.println(F("Test de la memoire statique ..."));
@@ -784,7 +790,7 @@ void loop() {
 
   /* Envoyer les donnees a firebase */
   send_firebase(my_extern_temp_struct->t, my_intern_temp, my_extern_temp_struct->h, bpm, mov, 
-                my_gps_struct->date, my_gps_struct->time, my_gps_struct->speed_kmh, my_gps_struct->altitude, my_gps_struct->longitude, my_gps_struct->latitude, SG, alpi_state);
+                my_gps_struct->date, my_gps_struct->time, my_gps_struct->speed_kmh, my_gps_struct->altitude, my_gps_struct->longitude, my_gps_struct->latitude, SG, alpi_state, temps_immobile, button);
 
   
 
@@ -802,9 +808,11 @@ void loop() {
     unsigned long start_time = millis();
     uint8_t pre_alerte = 1; 
     while (millis() - start_time < 30000 && pre_alerte){ // attendre 30s pour que l'alpiniste appuie sur le bouton 
+      Serial.println("\t\t\tstill in the first while");
       if(digitalRead(BUTTON_PIN) == HIGH){ // doit être à LOW ou HIGH ?
         digitalWrite(LED_PIN, LOW);
         pre_alerte = 0;
+        button = 1;
         delay (5000);// delai arbitraire 
       }
     }
@@ -817,7 +825,8 @@ void loop() {
     mov = accelerometer();
     my_gps_struct = GPS_func();
     send_firebase(my_extern_temp_struct->t, my_intern_temp, my_extern_temp_struct->h, bpm, mov, 
-                  my_gps_struct->date, my_gps_struct->time, my_gps_struct->speed_kmh, my_gps_struct->altitude, my_gps_struct->longitude, my_gps_struct->latitude, SG, alpi_state);
+                  my_gps_struct->date, my_gps_struct->time, my_gps_struct->speed_kmh, my_gps_struct->altitude, my_gps_struct->longitude, my_gps_struct->latitude, SG, alpi_state, temps_immobile,
+                  button);
 
   }
 
@@ -827,10 +836,12 @@ void loop() {
     unsigned long start_time = millis();
     uint8_t alerte_serieuse = 1;
     while(millis() - start_time < 15000 && alerte_serieuse){
+      Serial.println("\t\t\tstill in the second while");
       if(digitalRead(BUTTON_PIN) == HIGH) {
         digitalWrite(LED_PIN, LOW);
         digitalWrite(BUZZER_PIN, LOW);
         alerte_serieuse = 0;
+        button = 1;
         delay (5000);// delai arbitraire 
       }
     }
@@ -843,13 +854,15 @@ void loop() {
     mov = accelerometer();
     my_gps_struct = GPS_func();
     send_firebase(my_extern_temp_struct->t, my_intern_temp, my_extern_temp_struct->h, bpm, mov, 
-                  my_gps_struct->date, my_gps_struct->time, my_gps_struct->speed_kmh, my_gps_struct->altitude, my_gps_struct->longitude, my_gps_struct->latitude, SG, alpi_state);
+                  my_gps_struct->date, my_gps_struct->time, my_gps_struct->speed_kmh, my_gps_struct->altitude, my_gps_struct->longitude, my_gps_struct->latitude, SG, alpi_state, temps_immobile,
+                  button);
 
   }
 
   if (!strcmp(alpi_state, "Alerte critique")) {
     digitalWrite(LED_PIN, HIGH);
     digitalWrite(BUZZER_PIN, HIGH);
+    Serial.println("\t\t\twe are in alerte critique");
 
     /* Actualisation des données sur firebase */
     my_extern_temp_struct = extern_temp();
@@ -858,8 +871,8 @@ void loop() {
     mov = accelerometer();
     my_gps_struct = GPS_func();
     send_firebase(my_extern_temp_struct->t, my_intern_temp, my_extern_temp_struct->h, bpm, mov, 
-                  my_gps_struct->date, my_gps_struct->time, my_gps_struct->speed_kmh, my_gps_struct->altitude, my_gps_struct->longitude, my_gps_struct->latitude, SG, alpi_state);
-
+                  my_gps_struct->date, my_gps_struct->time, my_gps_struct->speed_kmh, my_gps_struct->altitude, my_gps_struct->longitude, my_gps_struct->latitude, SG, alpi_state, temps_immobile,
+                  button);
 
   }
 
