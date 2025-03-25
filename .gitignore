@@ -1,0 +1,22 @@
+# Ignore configuration files containing sensitive information
+config.h
+
+# Arduino specific
+*.hex
+*.elf
+*.bin
+*.eep
+*.lss
+*.sym
+*.map
+*.lst
+*.tmp
+*.bak
+*.swp
+*~
+
+# IDE specific
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace 

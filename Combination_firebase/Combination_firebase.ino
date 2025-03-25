@@ -1,4 +1,5 @@
 #include <SD.h>
+#include "config.h"
 //External Temperature def start
 #include "DHT.h"
 #define DHTPIN 4
@@ -49,21 +50,6 @@ uint32_t timer = millis();
 #include "addons/TokenHelper.h"
 // Provide the RTDB payload printing info and other helper functions.
 #include "addons/RTDBHelper.h"
-
-// Insert your network credentials
-#define WIFI_SSID "Esp32"
-#define WIFI_PASSWORD "adam19t!"
-
-// Insert Firebase project API Key
-#define API_KEY "AIzaSyC9IodquzD8AbE-0-MGZDm-osyQjg8pVgs"
-
-// Insert Authorized Email and Corresponding Password
-#define USER_EMAIL "Alpiniste@gmail.com"
-#define USER_PASSWORD "Qwerty1234567"
-
-// Insert RTDB URLefine the RTDB URL
-#define DATABASE_URL "https://alpisafe-ce734-default-rtdb.firebaseio.com/"
-
 
 // Define Firebase objects
 FirebaseData fbdo;
