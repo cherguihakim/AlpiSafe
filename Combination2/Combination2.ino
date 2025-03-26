@@ -215,7 +215,7 @@ float intern_temp(){
 }
 
 unsigned long last_mov = 0;
-unsigned long temps_immobile = 0;
+float temps_immobile = 0;
 
 int accelerometer(){
   //Accelerometer start
@@ -231,7 +231,7 @@ int accelerometer(){
   if(movement){
     Serial.println(F("Movement Detected"));
   }else{
-    temps_immobile = (millis() - last_mov) / 60000;
+    temps_immobile = (float(millis()) - float(last_mov)) / 60000;
     Serial.print(F("Stationary, Temps immobile : "));
     Serial.print(temps_immobile);
     Serial.println(F(" min"));
@@ -586,7 +586,7 @@ char* evaluer_niveau_gravite (const float& SG){
 // }
 
 void send_firebase(const float& temp_ext, const float& int_temp, const float& hum, const int& bpm, const int& mov, const char* gps_date, 
-                  const char* gps_time, const float& speed, const float& alt, const float& longi, const float& lat, const float& sg, const char* alpi_state, const unsigned long& time_immobile,
+                  const char* gps_time, const float& speed, const float& alt, const float& longi, const float& lat, const float& sg, const char* alpi_state, const float& time_immobile,
                   const int& button_state){
   //firebase start
   // Send new readings to database
@@ -873,7 +873,7 @@ void loop() {
     send_firebase(my_extern_temp_struct->t, my_intern_temp, my_extern_temp_struct->h, bpm, mov, 
                   my_gps_struct->date, my_gps_struct->time, my_gps_struct->speed_kmh, my_gps_struct->altitude, my_gps_struct->longitude, my_gps_struct->latitude, SG, alpi_state, temps_immobile,
                   button);
-
+    delay (5000);
   }
 
   if (!strcmp(alpi_state, "Situation normale")) {
