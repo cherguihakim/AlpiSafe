@@ -1,7 +1,7 @@
-
 // Frequence cardiaque start
 #include "MAX30105.h"
 #include "heartRate.h"
+#include "config.h"  // Include configuration file
 // Create an instance of the MAX30105 class to interact with the sensor
 MAX30105 particleSensor;
 // end Frequence cardiaque
@@ -68,19 +68,10 @@ uint32_t timer = millis();
 #include "addons/RTDBHelper.h"
 
 // Insert your network credentials
-#define WIFI_SSID "Esp32"
-#define WIFI_PASSWORD "adam19t!"
+// WIFI_SSID and WIFI_PASSWORD are now defined in config.h
 
 // Insert Firebase project API Key
-#define API_KEY "AIzaSyDZrqyUCICZ2qmkUsytUcC9AiLGA6EWzbc"
-
-// Insert Authorized Email and Corresponding Password
-#define USER_EMAIL "Alpiniste@gmail.com"
-#define USER_PASSWORD "Qwerty1234567"
-
-// Insert RTDB URLefine the RTDB URL
-#define DATABASE_URL "https://alpisafe2-default-rtdb.firebaseio.com/"
-
+// API_KEY, USER_EMAIL, USER_PASSWORD, and DATABASE_URL are now defined in config.h
 
 // Define Firebase objects
 FirebaseData fbdo;
