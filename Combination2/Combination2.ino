@@ -378,18 +378,12 @@ void BPM_func(void* pvParameters){
     }
  
     // Output the current IR value, BPM, and averaged BPM to the serial monitor
-    /*Serial.print("IR=");
-    Serial.print(irValue);
-    Serial.print(", BPM=");
-    Serial.print(beatsPerMinute);
-    Serial.print(", Avg BPM=");
-    Serial.print(beatAvg);*/
+    /*Serial.print("IR="); Serial.print(irValue); Serial.print(", BPM="); Serial.print(beatsPerMinute); Serial.print(", Avg BPM="); Serial.print(beatAvg);*/
  
     // Check if the sensor reading suggests that no finger is placed on the sensor
     if (irValue < 50000)
       Serial.println(F(" No finger?"));
- 
-    
+      //beatAvg =0;
     // delay(1000);
   }
 }
