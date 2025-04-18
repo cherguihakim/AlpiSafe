@@ -49,7 +49,7 @@
 
 ## 🛠️ Setup and Installation
 ```bash
-git clone https://github.com/username/AlpiSafe.git
+git clone https://github.com/cherguihakim/AlpiSafe.git
 cd AlpiSafe
 ```
 - Open the project in **Arduino IDE** or **PlatformIO**.
